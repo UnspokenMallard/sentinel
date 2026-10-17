@@ -99,8 +99,8 @@ def drift(settings: dict[str, dict]) -> dict[str, dict]:
 
 
 def _review():
-    sys.path.insert(0, str(JARVIS / "daemon"))
-    import review  # noqa: E402
+    sys.path.insert(0, str(Path.home() / ".forge"))  # the review queue is Forge's since 2026-10-17
+    from forge import review  # noqa: E402
 
     return review
 
