@@ -57,3 +57,42 @@ findings), `postpone.py`, the soak gate and checkpoint (they read Sentinel).
 Load-bearing rules from Jarvis: the counts-only ping, postponed alerts stay silent until their
 day, an incident resolves only on evidence, never on silence. Read `~/.jarvis/NEXT-PROMPT.md`
 before touching `~/.jarvis`.
+
+## As built (2026-10-17)
+
+Two stages in one session (Anze: "store first, checks second").
+
+- `sentinel/` (paths from `SENTINEL_HOME`, default `~/.sentinel`; tests set it to scratch): `store.py`
+  (`state/sentinel.db`, config), `alerts.py` (the alert record: one row per key, count), `incidents.py`
+  (lifecycle, resolver registry, reconcile, prune, `alerts_now`), `checks.py` (runner and envelope),
+  `cli.py`, `bin/sentinel`, `bin/sentinel-job.sh` (Jarvis's job entry point), `config.toml`
+  (`[incidents]`, `alerts_now` path), `tests/test_sentinel.py`, `tools/migrate-from-jarvis.py` (one-off).
+- Moved with their rows: `alerts` (261) and `incidents` (55, ids kept). The old tables are still in
+  `jarvis.db`, unused, until Anze confirms dropping them; backup `~/.jarvis/jarvis.db.bak-sentinel`.
+- `core.notify` split: Sentinel records (`sentinel.raise_(key, text, severity, evidence, incident=)`:
+  the alert count and the incident), Jarvis delivers (postpone filter, cooldown with backoff,
+  `alerts.log`, push). Jarvis keeps `alert_writes` and a new `alert_delivery(key, last_written)`.
+  A postponed alert is counted with `incident=False`.
+- Resolvers: the registry and the pass are Sentinel's. The five that read Jarvis's state (stuck-event,
+  loop-crash/stale, burn, delivery, handler-failed) and the three that read check artifacts
+  (machine-down, build-failed, server-failed) are registered by Jarvis's `daemon/incidents.py` on import
+  (the three artifact ones could move here; they read `state/checks/nuc.json`, `builds.json` and the
+  HUD's `servers-health.json`). The daemon's sentinel loop calls `sentinel.reconcile()`.
+- `ALERTS-NOW.md` (still at `~/.jarvis/ALERTS-NOW.md`): open incidents, rewritten when one opens or
+  resolves, not on every hit.
+- Checks: 14 scripts moved to `checks/` (`backup builds disk endpoints expiry nuc paths stalled dev-servers
+  host-cpu-load retired repo-versions config-drift log-signatures`). Jarvis's jobs keep their names and
+  schedules; each now runs `sentinel-job.sh check <name>` and asserts `state/checks/<name>.json`. The
+  runner stamps `ran_at`, `exit`, `ok` into the artifact. A check never alerts: `nuc` and `builds` put
+  `alerts: [{key, message, severity, cooldown_s}]` in the artifact and the job's `deliver_alerts = true`
+  makes the script handler call `core.notify`.
+- Differences from the design above:
+  - The check exit codes are the scripts' own (0 ran, non-zero could not run), not 0/1/2; the artifact
+    says whether the machines are fine (`ok`).
+  - Reports stay in `~/.jarvis/reports/` (retired, config-drift, log-signatures, dev-servers) and
+    `repo-versions` still writes `~/.jarvis/state/versions/` because the session-start hook reads it.
+  - `check-paths` still reads Jarvis's job config through `core.load_config`, and `check-builds` and
+    `repo-versions` still import Jarvis's `scripts/notmine.py`.
+  - Not moved: `health-check.py` (its launchd agent `com.jarvis.healthcheck` still runs it), `local-llm-perf`
+    (it feeds Jarvis's local-LLM triage), `backup-drill-sample` (called by `~/.local/bin/mac-backup`, not a
+    job), `alert-review` (it reads Jarvis's `alert_writes` and `postponed.json`, which are delivery data).

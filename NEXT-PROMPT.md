@@ -1,41 +1,38 @@
 # Next prompt: Sentinel
 
-Sentinel is checks, alerts and incidents, to be split out of Jarvis so Jarvis is an orchestrator. Designed on
-2026-10-17 (`~/.sentinel/DESIGN.md`, decisions at its top); not built yet. Components are built one
-per session, in the order Budget, Sentinel, Herald, Forge: each edits `~/.jarvis/config.toml`
-and the daemon, so two at once would conflict.
+DONE 2026-10-17: Sentinel is built and live (`~/.sentinel/DESIGN.md`, "As built"). What is left is a
+check of the first nights and cleanup that waits on Anze. Herald is next (`~/.herald/NEXT-PROMPT.md`).
 
 ## When to fire this
 
-Earliest-useful dates, not deadlines; being late costs nothing (Jarvis keeps running as is).
+Earliest-useful dates, not deadlines; being late costs nothing.
 
 | When | Step | Waits on |
 |---|---|---|
-| when Budget is live (2026-10-17) | build Sentinel from its DESIGN.md | the previous component's cutover |
+| 2026-10-18 08:00 | `sentinel checks` shows every check `ran_at` within its schedule; no `handler-failed` for the 14 moved jobs (nuc 5m, builds 30m, hourly: paths disk endpoints stalled dev-servers retired config-drift host-cpu-load, nightly: backup repo-versions expiry log-signatures); `~/.jarvis/ALERTS-NOW.md` lists only open incidents | the first night |
+| after that check, Anze | drop `alerts` and `incidents` from `~/.jarvis/jarvis.db` and delete `~/.jarvis/jarvis.db.bak-sentinel` | Anze's confirmation |
+| with Herald's build | `core.notify`'s delivery half (cooldown, push, `_push`, `ping.py`) goes behind Herald | Herald |
+| optional, later | move `health-check.py` (a Jarvis job instead of `com.jarvis.healthcheck`), the three artifact resolvers, and the four checks left in Jarvis (see DESIGN "As built") | Anze's call |
 
 ## A: advance the work
 
-> Build Sentinel. Read `~/.sentinel/DESIGN.md`, `~/.jarvis/NEXT-PROMPT.md` (its load-bearing rules),
-> and how Budget was split (`~/.budget/DESIGN.md` "As built", Jarvis commit "Move the spend
-> ledger, ceilings, limits and brake decision into Budget") and Mind (`~/.mind/DESIGN.md`): same
-> layout, same cutover discipline. Work in the main checkouts, not a worktree: the cutover
-> restarts the live daemon (`~/.jarvis/restart.sh` only; the HUD with
-> `launchctl kickstart -k gui/$(id -u)/com.jarvis.hud`).
-> Rules: Sentinel never alerts, pings or holds work; Jarvis triggers it and acts. Back up
-> `jarvis.db` with `sqlite3 .backup` before moving any table; copy rows, never drop a table or
-> delete a backup without Anze's confirmation. Redirect the component's data in `selftest.py`
-> before anything imports it (as `BUDGET_HOME` is). Selftest, HUD tests, Mind and Budget tests
-> must pass before and after. Ask Anze the design's open questions first (AskUserQuestion, one
-> batch). When done, mark this file DONE, point Herald (`~/.herald`) at its build, add a dated
-> section to `~/.jarvis/JOURNAL.md`, and stop and tell me if anything differs from the design.
+> Read `~/.sentinel/DESIGN.md` and this file. Do the first row whose date has passed and report.
+> Rules: Sentinel observes and records; it never alerts, pings, postpones or holds work (Jarvis
+> does). An incident resolves on evidence, never on silence ("cannot tell" keeps it open). Never
+> resolve an incident to make a gate go green. A check never calls `core.notify`: it writes
+> `alerts` in its artifact and the job delivers. Never drop a table or delete a backup without
+> Anze's confirmation. Stop and tell me if anything differs from what this file expects.
 
 ## B: status only
 
-> Read `~/.sentinel/DESIGN.md` and this file, and report whether Sentinel is built. Change nothing.
+> Run `~/.sentinel/bin/sentinel incidents --open`, `~/.sentinel/bin/sentinel checks` and
+> `~/.jarvis/.venv/bin/python ~/.sentinel/tests/test_sentinel.py`. Change nothing.
 
 ## C: something is broken
 
-> Sentinel or the Jarvis daemon broke during the cutover. First, do not delete `jarvis.db`, a
-> backup or a state file. Run `~/.jarvis/.venv/bin/python ~/.jarvis/status.py` and the selftest,
-> read the daemon log, and report before fixing. `git -C ~/.jarvis log` shows the cutover commit
-> to compare against.
+> Sentinel or an alert path broke. First, do not delete `state/sentinel.db`, a backup or an
+> artifact: they are the evidence. Copy the db with `sqlite3 .backup`, run
+> `~/.jarvis/.venv/bin/python ~/.jarvis/status.py` and the Jarvis selftest, read
+> `~/.jarvis/logs/jarvis.log`, and report before fixing. `git -C ~/.jarvis log` shows the two cutover
+> commits ("Move the alert record and incident store into Sentinel", "Move the check scripts into
+> Sentinel ..."); the old tables and `jarvis.db.bak-sentinel` hold the pre-cutover rows.
