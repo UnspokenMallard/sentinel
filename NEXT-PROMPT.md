@@ -11,7 +11,7 @@ Earliest-useful dates, not deadlines; being late costs nothing.
 |---|---|---|
 | 2026-10-18 08:00 | `sentinel checks` shows every check `ran_at` within its schedule; no `handler-failed` for the 14 moved jobs (nuc 5m, builds 30m, hourly: paths disk endpoints stalled dev-servers retired config-drift host-cpu-load, nightly: backup repo-versions expiry log-signatures); `~/.jarvis/ALERTS-NOW.md` lists only open incidents | the first night |
 | after that check, Anze | drop `alerts` and `incidents` from `~/.jarvis/jarvis.db` and delete `~/.jarvis/jarvis.db.bak-sentinel` | Anze's confirmation |
-| with Herald's build | `core.notify`'s delivery half (cooldown, push, `_push`, `ping.py`) goes behind Herald | Herald |
+| ~~with Herald's build~~ DONE 2026-10-17 | `core.notify`'s push is Herald's desktop toast (`POST /toast`, `herald/toast.py`); the cooldown, backoff, postponing and `alerts.log` stay in Jarvis because they decide whether to say it (see `~/.herald/DESIGN.md` "As built") | Herald |
 | optional, later | move `health-check.py` (a Jarvis job instead of `com.jarvis.healthcheck`), the three artifact resolvers, and the four checks left in Jarvis (see DESIGN "As built") | Anze's call |
 
 ## A: advance the work
