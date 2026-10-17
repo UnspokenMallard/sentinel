@@ -10,7 +10,7 @@ os.environ["SENTINEL_HOME"] = str(_TMP)  # before anything imports sentinel
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import sentinel  # noqa: E402
-from sentinel import alerts, cli, incidents, store  # noqa: E402
+from sentinel import alerts, checks, cli, incidents, store  # noqa: E402
 
 assert store.DB_PATH.parent == _TMP / "state", store.DB_PATH
 
@@ -78,6 +78,22 @@ def test_cli():
     assert cli.main(["incidents", "--open"]) == 1
     assert cli.main(["resolve", "999999", "x"]) == 1
     assert cli.main(["nope"]) == 2
+
+
+def test_check_runs_and_stamps_the_artifact():
+    (_TMP / "checks").mkdir(exist_ok=True)
+    (_TMP / "checks" / "check-demo.py").write_text(
+        "import json, sys\nfrom pathlib import Path\n"
+        "p = Path(sys.argv[1]); p.parent.mkdir(parents=True, exist_ok=True)\n"
+        "p.write_text(json.dumps({'failing': ['demo:x'] if len(sys.argv) > 2 else []}))\n")
+    art = checks.artifact_path("demo")
+    assert checks.names() == ["demo"]
+    assert checks.run("demo", [str(art)]) == 0
+    doc = __import__("json").loads(art.read_text())
+    assert doc["ok"] is True and doc["exit"] == 0 and "ran_at" in doc
+    assert checks.run("demo", [str(art), "fail"]) == 0
+    assert __import__("json").loads(art.read_text())["ok"] is False  # exit 0 but something failing
+    assert checks.run("nope", []) == 2
 
 
 if __name__ == "__main__":

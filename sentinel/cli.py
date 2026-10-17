@@ -4,16 +4,17 @@
   sentinel resolve <id> [why...]         human closes an incident
   sentinel alerts-now                    rewrite ALERTS-NOW.md from the open incidents
   sentinel report [days]
+  sentinel check <name> [args...]        run a check; its artifact is state/checks/<name>.json
+  sentinel checks                        list the checks and when each last ran
 
 Reconcile is not here: Jarvis's resolvers run inside the daemon, so Jarvis triggers the pass.
-`check <name>` arrives with the checks.
 """
 from __future__ import annotations
 
 import json
 import sys
 
-from . import incidents
+from . import checks, incidents
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -52,6 +53,16 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if cmd == "alerts-now":
         print("written" if incidents.alerts_now() else "unchanged")
+        return 0
+    if cmd == "check" and rest:
+        return checks.run(rest[0], rest[1:])
+    if cmd == "checks":
+        for n in checks.names():
+            try:
+                doc = json.loads(checks.artifact_path(n).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                doc = {}
+            print(f"{n:16} ran_at={doc.get('ran_at') or doc.get('checked_at') or 'never'} ok={doc.get('ok')}")
         return 0
     if cmd == "report":
         print(incidents.report(int(rest[0]) if rest else 7))
