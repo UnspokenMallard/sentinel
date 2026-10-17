@@ -44,7 +44,21 @@ def count_since(since: float) -> int:
         return conn.execute("SELECT COUNT(*) FROM alerts WHERE last_seen > ?", (since,)).fetchone()[0]
 
 
-def sum_since(since: float) -> int:
-    """Total raises of keys last seen at or after `since`."""
+def sum_since(since: float, key_prefix: str | None = None) -> int:
+    """Total raises of keys last seen after `since`, optionally only keys starting with `key_prefix`."""
+    sql, args = "SELECT COALESCE(SUM(count), 0) FROM alerts WHERE last_seen > ?", [since]
+    if key_prefix:
+        sql += " AND key LIKE ?"
+        args.append(key_prefix.replace("%", r"\%").replace("_", r"\_") + "%")
+        sql += " ESCAPE '\\'"
     with store.connect() as conn:
-        return conn.execute("SELECT COALESCE(SUM(count), 0) FROM alerts WHERE last_seen >= ?", (since,)).fetchone()[0]
+        return conn.execute(sql, args).fetchone()[0]
+
+
+def since(since_ts: float) -> list[tuple]:
+    """(key, message, count, last_seen) for keys last seen at or after `since_ts`, oldest first."""
+    with store.connect() as conn:
+        return conn.execute(
+            "SELECT key, message, count, last_seen FROM alerts WHERE last_seen >= ? ORDER BY last_seen",
+            (since_ts,),
+        ).fetchall()
