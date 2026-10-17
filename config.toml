@@ -1,0 +1,11 @@
+# Sentinel config. Jarvis's [incidents] section moved here 2026-10-17.
+# Where `sentinel alerts-now` writes: the file Jarvis's readers already know.
+alerts_now = "~/.jarvis/ALERTS-NOW.md"
+
+[incidents]
+enabled = true
+# How long a kind must stay quiet before an incident with NO resolver is closed by inference.
+# Resolver-backed kinds ignore it: a resolver that cannot answer keeps its incident open.
+# 24h on purpose: holding a finished incident one day costs a line in a report, closing a live one
+# early costs the failure this module exists to stop. 0 disables inferred closure.
+quiet_resolve_s = 86400

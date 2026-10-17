@@ -1,0 +1,3 @@
+#!/bin/zsh
+# Sentinel's CLI (sentinel/cli.py): incidents, resolve, alerts-now. Runs in Jarvis's venv (stdlib only, needs 3.11+).
+exec $HOME/.jarvis/.venv/bin/python -c 'import sys; sys.path.insert(0, sys.argv.pop(1)); from sentinel.cli import main; sys.exit(main())' $HOME/.sentinel "$@"
