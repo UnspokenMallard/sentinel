@@ -3,8 +3,9 @@
 `sentinel check <name>` runs `checks/check-<name>.py` (or `<name>.py`) with Sentinel's interpreter, passes
 its exit code through, and stamps its artifact `state/checks/<name>.json` with the envelope every reader can
 rely on whatever the check puts in the rest: `ran_at`, `exit`, and `ok` (exit 0 and nothing in `failing` or
-`problems`). A check never alerts: what Jarvis should say goes in the artifact's `alerts` list
-(`{key, message, severity, cooldown_s}`), and the Jarvis job that triggered the check delivers it.
+`problems`). A run with `--check` in its args is read-only and stamps nothing. A check never alerts: what
+Jarvis should say goes in the artifact's `alerts` list (`{key, message, severity, cooldown_s}`), and the
+Jarvis job that triggered the check delivers it.
 """
 from __future__ import annotations
 
@@ -65,6 +66,7 @@ def run(name: str, args: list[str]) -> int:
         print(f"sentinel: no check named {name!r} (have: {', '.join(names())})", file=sys.stderr)
         return 2
     code = subprocess.run([sys.executable, str(script), *args]).returncode
-    if code == 0:
+    # `--check` only reads an earlier run's artifact: restamping it would hide a run that never happened.
+    if code == 0 and "--check" not in args:
         stamp(name, code)
     return code

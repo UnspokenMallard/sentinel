@@ -140,6 +140,39 @@ def test_commit_audit_flags_into_the_artifact_and_exits_0():
     assert doc["flagged"] == [] and doc["alerts"] == [] and doc["failing"] == []
 
 
+def test_check_with_dash_check_does_not_restamp():
+    import json
+    (_TMP / "checks" / "check-readonly.py").write_text(
+        "import json, sys\nfrom pathlib import Path\np = Path(sys.argv[1]); p.parent.mkdir(parents=True, exist_ok=True)\n"
+        "p.write_text(json.dumps({'outcome': 'ran'}))\n")
+    art = checks.artifact_path("readonly")
+    assert checks.run("readonly", [str(art)]) == 0 and "ran_at" in json.loads(art.read_text())
+    art.write_text(json.dumps({"outcome": "ran"}))
+    assert checks.run("readonly", [str(art), "--check"]) == 0
+    assert "ran_at" not in json.loads(art.read_text())
+
+
+def test_dep_rehearsal_check_reads_the_last_run_and_picks_targets():
+    import datetime as dt
+    import json
+    dr = _load_check("check-dep-rehearsal.py")
+    dr.ARTIFACT = _TMP / "state" / "checks" / "dep-rehearsal.json"
+    dr.ARTIFACT.parent.mkdir(parents=True, exist_ok=True)
+    dr.ARTIFACT.unlink(missing_ok=True)
+    assert dr.check() == 1  # no artifact: the run never happened
+    dr.ARTIFACT.write_text(json.dumps({"ran_at": "t", "outcome": "error", "error": "boom"}))
+    assert dr.check() == 1
+    dr.ARTIFACT.write_text(json.dumps({"ran_at": "t", "outcome": "ran",
+                                       "repos": {"er-web": {"baseline_ok": True, "safe_verified": 3, "breaking": 1}}}))
+    assert dr.check() == 0
+    old, new = dt.datetime(2026, 1, 1), dt.datetime(2026, 10, 1)
+    times = {"1.2.0": old, "1.3.0": old, "1.3.1": new, "2.0.0": old}
+    assert dr.pick("1.2.0", times, dt.datetime(2026, 9, 1)) == ("1.3.0", "2.0.0")  # 1.3.1 is too fresh
+    assert dr.pick("0.4.0", {"0.4.1": old, "0.5.0": old}, dt.datetime(2026, 9, 1)) == ("0.4.1", "0.5.0")
+    assert dr.group_key("@angular/core") == dr.group_key("@angular-devkit/build-angular") == "angular"
+    assert dr.group_key("@types/node") == "@types/node" and dr.group_key("@nestjs/core") == "@nestjs"
+
+
 if __name__ == "__main__":
     n = 0
     for name, fn in list(globals().items()):
