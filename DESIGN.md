@@ -96,7 +96,10 @@ Two stages in one session (Anze: "store first, checks second").
     `repo-versions` still import Jarvis's `scripts/notmine.py`.
   - Moved 2026-10-18: `backup-drill-sample` to `checks/` (a helper, not a job; `mac-backup` now calls
     `~/.sentinel/checks/backup-drill-sample.py`).
-  - Not moved, Anze's call: `health-check.py` (its launchd agent `com.jarvis.healthcheck` runs it outside the
-    daemon, on purpose: it must see a dead daemon, so it cannot become a Jarvis job as this section planned),
-    `local-llm-perf` (a job in Jarvis's config, but its script lives in `~/.gateway`).
+  - `local-llm-perf` (2026-10-18): `checks/local-llm-perf.py` wraps Gateway's script, and the Jarvis job calls
+    `sentinel-job.sh check local-llm-perf`. The script and its artifact stay in `~/.gateway/state` (Jarvis's
+    triage reads them), so the wrapper writes no envelope and `sentinel checks` shows no `ran_at` for it.
+  - Kept outside Sentinel, by Anze's decision 2026-10-18: `health-check.py`. Its launchd agent
+    `com.jarvis.healthcheck` runs it outside the daemon on purpose (it must see a dead daemon), so it does not
+    become a Jarvis job as this section planned.
   - Already elsewhere: `alert-review` runs under Analyst (`~/.analyst/bin/analyst-job.sh`) since 2026-10-18.
