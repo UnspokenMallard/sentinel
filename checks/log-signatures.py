@@ -1,7 +1,7 @@
 #!/Users/anzes/.jarvis/.venv/bin/python
 """Group error and warning lines in the Jarvis logs by signature (report only).
 
-Reads every log under ~/.jarvis/logs modified in the last WINDOW_DAYS, keeps the
+Reads every log under ~/.jarvis/logs and ~/.analyst/state/logs modified in the last WINDOW_DAYS, keeps the
 lines that say ERROR, WARN, FAILED, Traceback or a nonzero exit, and collapses
 each to a signature: timestamps, numbers, hex ids, quoted strings and paths are
 replaced with placeholders, so one failure that repeats with different values
@@ -25,6 +25,7 @@ from pathlib import Path
 
 JARVIS = Path.home() / ".jarvis"
 LOGS = JARVIS / "logs"
+ANALYST_LOGS = Path.home() / ".analyst" / "state" / "logs"  # the report jobs Jarvis triggers in Analyst (2026-10-18)
 REPORT = JARVIS / "reports" / "log-signatures" / "latest.md"
 CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "log-signatures.json"
@@ -77,7 +78,7 @@ def main() -> int:
     build: Counter[str] = Counter()
     examples: dict[str, str] = {}
     sources: dict[str, set[str]] = defaultdict(set)
-    files = [p for p in LOGS.glob("*.log*") if p.is_file() and p.stat().st_mtime >= cutoff]
+    files = [p for d in (LOGS, ANALYST_LOGS) for p in d.glob("*.log*") if p.is_file() and p.stat().st_mtime >= cutoff]
     for path in files:
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
