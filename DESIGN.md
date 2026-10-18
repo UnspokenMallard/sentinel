@@ -67,8 +67,9 @@ Two stages in one session (Anze: "store first, checks second").
   (lifecycle, resolver registry, reconcile, prune, `alerts_now`), `checks.py` (runner and envelope),
   `cli.py`, `bin/sentinel`, `bin/sentinel-job.sh` (Jarvis's job entry point), `config.toml`
   (`[incidents]`, `alerts_now` path), `tests/test_sentinel.py`, `tools/migrate-from-jarvis.py` (one-off).
-- Moved with their rows: `alerts` (261) and `incidents` (55, ids kept). The old tables are still in
-  `jarvis.db`, unused, until Anze confirms dropping them; backup `~/.jarvis/jarvis.db.bak-sentinel` deleted 2026-10-18.
+- Moved with their rows: `alerts` (261) and `incidents` (55, ids kept). Anze confirmed the drop: the old
+  tables were dropped from `jarvis.db` on 2026-10-18 (every old row was already in `sentinel.db`); backup
+  `~/.jarvis/jarvis.db.bak-sentinel` deleted 2026-10-18.
 - `core.notify` split: Sentinel records (`sentinel.raise_(key, text, severity, evidence, incident=)`:
   the alert count and the incident), Jarvis delivers (postpone filter, cooldown with backoff,
   `alerts.log`, push). Jarvis keeps `alert_writes` and a new `alert_delivery(key, last_written)`.
@@ -93,6 +94,9 @@ Two stages in one session (Anze: "store first, checks second").
     `repo-versions` still writes `~/.jarvis/state/versions/` because the session-start hook reads it.
   - `check-paths` still reads Jarvis's job config through `core.load_config`, and `check-builds` and
     `repo-versions` still import Jarvis's `scripts/notmine.py`.
-  - Not moved: `health-check.py` (its launchd agent `com.jarvis.healthcheck` still runs it), `local-llm-perf`
-    (it feeds Jarvis's local-LLM triage), `backup-drill-sample` (called by `~/.local/bin/mac-backup`, not a
-    job), `alert-review` (it reads Jarvis's `alert_writes` and `postponed.json`, which are delivery data).
+  - Moved 2026-10-18: `backup-drill-sample` to `checks/` (a helper, not a job; `mac-backup` now calls
+    `~/.sentinel/checks/backup-drill-sample.py`).
+  - Not moved, Anze's call: `health-check.py` (its launchd agent `com.jarvis.healthcheck` runs it outside the
+    daemon, on purpose: it must see a dead daemon, so it cannot become a Jarvis job as this section planned),
+    `local-llm-perf` (a job in Jarvis's config, but its script lives in `~/.gateway`).
+  - Already elsewhere: `alert-review` runs under Analyst (`~/.analyst/bin/analyst-job.sh`) since 2026-10-18.
