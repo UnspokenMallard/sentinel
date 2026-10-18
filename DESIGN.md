@@ -68,7 +68,7 @@ Two stages in one session (Anze: "store first, checks second").
   `cli.py`, `bin/sentinel`, `bin/sentinel-job.sh` (Jarvis's job entry point), `config.toml`
   (`[incidents]`, `alerts_now` path), `tests/test_sentinel.py`, `tools/migrate-from-jarvis.py` (one-off).
 - Moved with their rows: `alerts` (261) and `incidents` (55, ids kept). The old tables are still in
-  `jarvis.db`, unused, until Anze confirms dropping them; backup `~/.jarvis/jarvis.db.bak-sentinel`.
+  `jarvis.db`, unused, until Anze confirms dropping them; backup `~/.jarvis/jarvis.db.bak-sentinel` deleted 2026-10-18.
 - `core.notify` split: Sentinel records (`sentinel.raise_(key, text, severity, evidence, incident=)`:
   the alert count and the incident), Jarvis delivers (postpone filter, cooldown with backoff,
   `alerts.log`, push). Jarvis keeps `alert_writes` and a new `alert_delivery(key, last_written)`.
