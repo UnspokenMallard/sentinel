@@ -96,6 +96,50 @@ def test_check_runs_and_stamps_the_artifact():
     assert checks.run("nope", []) == 2
 
 
+def _load_check(file: str):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(file[:-3].replace("-", "_"), Path(__file__).resolve().parent.parent / "checks" / file)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_commit_audit_pure_rules():
+    ca = _load_check("check-commit-audit.py")
+    assert ca.crlf_blowups({"a.html": 2600, "b.ts": 40}, {"a.html": 70, "b.ts": 40}) == ["a.html: 2600 lines, 70 without CR changes"]
+    assert ca.unmentioned_deletions("Restyle charts", ["js/zoom.tpl.html"]) == ["js/zoom.tpl.html"]
+    assert ca.unmentioned_deletions("Remove the old zoom handler", ["js/zoom.tpl.html"]) == []
+    assert ca.TRAILER_RE.search("Fix x\n\nCo-Authored-By: Claude <noreply@anthropic.com>")
+    assert ca.is_acknowledged("93e315b87abc", {"93e315b87": "fixed"}) and not ca.is_acknowledged("93e315b87abc", {"93e3": "short"})
+
+
+def test_commit_audit_flags_into_the_artifact_and_exits_0():
+    import json
+    import subprocess
+    ca = _load_check("check-commit-audit.py")
+    repo = _TMP / "audited" / "repo"
+    repo.mkdir(parents=True)
+    git = lambda *a: subprocess.run(["git", "-C", str(repo), *a], check=True, capture_output=True)  # noqa: E731
+    git("init", "-q")
+    git("config", "user.email", "me@example.com")
+    git("config", "user.name", "me")
+    (repo / "a.txt").write_text("x\n")
+    git("add", "-A")
+    git("commit", "-qm", "Add a\n\nCo-authored-by: Claude <noreply@anthropic.com>")
+    ca.ROOTS, ca.EXTRA = [_TMP / "audited"], []
+    ca.REPORT, ca.ARTIFACT, ca.CONFIG = _TMP / "r" / "latest.md", _TMP / "state" / "checks" / "commit-audit.json", _TMP / "none.toml"
+    assert ca.main() == 0
+    doc = json.loads(ca.ARTIFACT.read_text())
+    assert doc["commits"] == 1 and doc["failing"] and doc["alerts"][0]["key"] == "commit-audit:flagged"
+    assert "attribution trailer" in ca.REPORT.read_text()
+    git("commit", "-q", "--allow-empty", "-m", "Clean")
+    sha = subprocess.run(["git", "-C", str(repo), "log", "-2", "--format=%H"], capture_output=True, text=True).stdout.split()[1]
+    ca.CONFIG.write_text(f'[commit_audit.acknowledged]\n"{sha[:9]}" = "test"\n')
+    assert ca.main() == 0
+    doc = json.loads(ca.ARTIFACT.read_text())
+    assert doc["flagged"] == [] and doc["alerts"] == [] and doc["failing"] == []
+
+
 if __name__ == "__main__":
     n = 0
     for name, fn in list(globals().items()):
