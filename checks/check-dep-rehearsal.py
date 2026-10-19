@@ -2,7 +2,7 @@
 """Weekly dependency-update rehearsal for er-web and er-api (asked for by Anze 2026-10-03).
 
 Answers "which dependency updates are safe to take this week?" without touching the
-repositories. Each repo's `dev` commit is exported with `git archive` into
+repositories. Each repo's `development` commit is exported with `git archive` into
 ~/Library/Caches/jarvis/dep-rehearsal (no worktree, no branch, nothing written to the
 repo), updates are tried there, and the result is a report plus a patch that Anze
 applies himself. Nothing is committed to, pushed from or installed into the repos.
@@ -62,9 +62,9 @@ CODE = HOME / "code" / "eventregistry"
 # `rebuild` names the only packages whose install scripts run (npm rebuild, after every install):
 # sharp 0.32 downloads its native binary in one and fails to load without it.
 REPOS = {
-    "er-web": {"ref": "dev", "build": [["npm", "run", "build"], ["npm", "run", "build:server-express"]],
+    "er-web": {"ref": "refs/heads/development", "build": [["npm", "run", "build"], ["npm", "run", "build:server-express"]],
                "rebuild": []},
-    "er-api": {"ref": "dev", "build": [["npm", "run", "compile:server"]], "rebuild": ["sharp"]},
+    "er-api": {"ref": "refs/heads/development", "build": [["npm", "run", "compile:server"]], "rebuild": ["sharp"]},
 }
 # Tests already failing on the baseline are not held against an update: a trial is red only
 # when it fails a test the baseline passed, or passes fewer tests than the baseline.
@@ -139,8 +139,11 @@ def prepare(name: str, ref: str) -> tuple[Path, str]:
     if work.exists():
         shutil.rmtree(work)
     work.mkdir(parents=True)
-    sha = subprocess.run(["git", "-C", str(src), "rev-parse", "--short", ref], capture_output=True, text=True,
-                         check=True).stdout.strip()
+    # full refs/heads path: a bare `development` is ambiguous with the `development` remote
+    probe = subprocess.run(["git", "-C", str(src), "rev-parse", "--short", "--verify", ref], capture_output=True, text=True)
+    if probe.returncode != 0:
+        raise RuntimeError(f"{name}: ref `{ref}` not found in {src} - create or fetch that branch, or fix REPOS in {__file__}")
+    sha = probe.stdout.strip()
     archive = subprocess.Popen(["git", "-C", str(src), "archive", "--format=tar", ref], stdout=subprocess.PIPE)
     subprocess.run(["tar", "-x", "-C", str(work)], stdin=archive.stdout, check=True)
     if archive.wait() != 0:
