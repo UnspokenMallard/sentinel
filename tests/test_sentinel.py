@@ -159,9 +159,9 @@ def test_dep_rehearsal_check_reads_the_last_run_and_picks_targets():
     dr.ARTIFACT = _TMP / "state" / "checks" / "dep-rehearsal.json"
     dr.ARTIFACT.parent.mkdir(parents=True, exist_ok=True)
     dr.ARTIFACT.unlink(missing_ok=True)
-    assert dr.check() == 1  # no artifact: the run never happened
+    assert dr.check() == dr.FINDING_EXIT  # no artifact: the run never happened
     dr.ARTIFACT.write_text(json.dumps({"ran_at": "t", "outcome": "error", "error": "boom"}))
-    assert dr.check() == 1
+    assert dr.check() == dr.FINDING_EXIT
     dr.ARTIFACT.write_text(json.dumps({"ran_at": "t", "outcome": "ran",
                                        "repos": {"er-web": {"baseline_ok": True, "safe_verified": 3, "breaking": 1}}}))
     assert dr.check() == 0
