@@ -25,6 +25,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 LOG_DIR = Path.home() / "Library" / "Logs" / "mac-backup"
 STATUS_FILE = LOG_DIR / "status.json"
 BACKUP_LOG = LOG_DIR / "backup.log"
@@ -182,7 +184,7 @@ def main() -> int:
     summary += f"; last drill {drill_age_d}d ago" if drill_age_d is not None else ""
     if problems:
         print("backup: " + "; ".join(problems) + f". ({summary})", file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     print(f"backup OK - {summary}; nuc good")
     return 0
 

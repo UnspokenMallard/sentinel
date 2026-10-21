@@ -23,6 +23,8 @@ import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 JARVIS = Path.home() / ".jarvis"
 CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
 HISTORY = CHECKS / "endpoints-history.jsonl"
@@ -94,7 +96,7 @@ def main() -> int:
 
     if problems:
         print("endpoints: " + "; ".join(problems) + f". ({len(hosts)} probed)", file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     nearest = min((r["cert_days_left"] for r in rows if r["cert_days_left"] is not None), default=None)
     print(f"endpoints OK - {len(hosts)} probed; nearest certificate expiry {nearest}d")
     return 0

@@ -21,6 +21,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 JARVIS = Path.home() / ".jarvis"
 REGISTRY = JARVIS / "secrets" / "expiry.json"
 CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
@@ -63,7 +65,7 @@ def main() -> int:
 
     if problems:
         print("credentials: " + "; ".join(problems), file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     dated = [r for r in rows if r["expires"]]
     nearest = min((r["days_left"] for r in dated), default=None)
     tail = f"; nearest in {nearest}d" if nearest is not None else ""

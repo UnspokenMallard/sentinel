@@ -32,6 +32,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 HOME = Path.home()
 J = HOME / ".jarvis"
 CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
@@ -142,7 +144,7 @@ def main() -> int:
         listing = "; ".join(f"{p} <- {srcs[0]}" + (f" (+{len(srcs) - 1} more)" if len(srcs) > 1 else "") + suggest(p)
                             for p, srcs in list(by_path.items())[:10])
         print(f"{len(by_path)} referenced path(s) do not exist: {listing}. {summary}", file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     if unreadable:
         # a source that could not be read is unchecked, not clean: fail loudly
         print(f"paths NOT fully checked - {summary}", file=sys.stderr)

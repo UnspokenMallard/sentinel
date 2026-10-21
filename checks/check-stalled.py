@@ -31,6 +31,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 SAMPLE_S = 20
 IDLE_FAIL_H = 4.0
 CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
@@ -100,7 +102,7 @@ def main() -> int:
     if failing:
         detail = "; ".join(f"pid {r['pid']} idle {r['elapsed_h']:.1f}h {r['command'][:60]}" for r in failing[:5])
         print(f"STALLED headless session(s): {detail}. {msg}", file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     if interactive:
         msg += f"; interactive left open: {len(interactive)} (not a failure)"
     print(f"sessions OK - {msg}")

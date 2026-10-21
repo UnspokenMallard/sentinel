@@ -31,6 +31,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 HOME = Path.home()
 JARVIS = HOME / ".jarvis"
 CONFIGS = {"personal": HOME / ".claude-personal" / "settings.json",
@@ -139,7 +141,7 @@ def check() -> int:
     review.render()
     print(f"config drift: {count} difference(s): " + "; ".join(l[2:] for l in lines if l.startswith("- "))[:500],
           file=sys.stderr)
-    return 1
+    return FINDING_EXIT
 
 
 def apply() -> int:

@@ -30,6 +30,8 @@ import tomllib
 from datetime import datetime
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 HOME = Path.home()
 JARVIS = HOME / ".jarvis"
 REPORT = JARVIS / "reports" / "retired-tools" / "latest.md"
@@ -104,7 +106,7 @@ def main() -> int:
     if flagged:
         print("retired tools still present: " + "; ".join(f"{r['name']}: {r['traces'][0][:90]}" for r in flagged),
               file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     print(f"retired tools OK - {len(entries)} checked, none present")
     return 0
 

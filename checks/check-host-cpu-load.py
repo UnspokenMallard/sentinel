@@ -19,6 +19,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
 STATUS = CHECKS
 ARTIFACT = STATUS / "host-cpu-load.json"
@@ -44,7 +46,7 @@ def main() -> int:
         print(f"Host CPU averaged {avg:.0f}% over ~3s (limit {limit:.0f}%) - sustained saturation. Top CPU consumer "
               f"right now: {top_name.strip()} (PID {top_pid}, {top_cpu}%). Check this before assuming any other tool "
               "is broken.", file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     print(f"host CPU avg {avg:.1f}% - within budget (top: {top_name.strip()})")
     return 0
 

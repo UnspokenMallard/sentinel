@@ -31,6 +31,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 HOME = Path.home()
 JARVIS = HOME / ".jarvis"
 CODE = HOME / "code"
@@ -171,7 +173,7 @@ def main() -> int:
         print("\n".join(lines))
     if clash:
         print(f"dev servers: PORT CONFLICT {'; '.join(clash)}. {summary}", file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     print(f"dev servers OK - {summary}")
     return 0
 

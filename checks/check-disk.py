@@ -22,6 +22,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 HOME = Path.home()
 CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
 HISTORY = CHECKS / "disk-history.jsonl"
@@ -100,7 +102,7 @@ def main() -> int:
     summary = f"free {free_gb:.0f} GB ({free_pct:.0f}%); caches {sizes['caches'] or 0:.1f} GB"
     if problems:
         print("disk: " + "; ".join(problems) + f". ({summary})", file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     print(f"disk OK - {summary}; {len(history) + 1} sample(s) recorded")
     return 0
 

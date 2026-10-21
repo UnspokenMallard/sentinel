@@ -55,6 +55,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
+
 HOME = Path.home()
 CODE = HOME / "code" / "eventregistry"
 # Checks are build + unit tests only (Anze, 2026-10-03): Cypress needs the dev server and
@@ -498,7 +500,7 @@ def check() -> int:
         return 1
     if last.get("outcome") != "ran":
         print(f"dep rehearsal of {last.get('ran_at')} failed: {last.get('error')} - see {LOG}", file=sys.stderr)
-        return 1
+        return FINDING_EXIT
     print(f"dep rehearsal of {last.get('ran_at')} ran: " + "; ".join(
         f"{k} baseline {'green' if v['baseline_ok'] else 'RED'}, {v['safe_verified']} safe, {v['breaking']} breaking"
         for k, v in last.get("repos", {}).items()))
