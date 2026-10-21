@@ -195,6 +195,15 @@ def test_services_drill_closed_and_wedged_listeners():
     assert [a["key"] for a in doc["alerts"]] == ["service-down:wedged", "service-down:closed"]
 
 
+def test_launchd_flags_only_idle_agents_with_a_bad_exit():
+    lc = _load_check("check-launchd.py")
+    listing = ("PID\tStatus\tLabel\n12\t-15\tcom.jarvis.hud\n-\t0\tcom.mind.sleep\n"
+               "-\t1\tcom.jarvis.healthcheck\n-\t1\tcom.apple.other\n")
+    assert lc.main(listing, _TMP / "launchd.json") == 0
+    doc = __import__("json").loads((_TMP / "launchd.json").read_text())
+    assert doc["failing"] == ["com.jarvis.healthcheck last exited 1"] and len(doc["rows"]) == 3
+
+
 if __name__ == "__main__":
     n = 0
     for name, fn in list(globals().items()):
