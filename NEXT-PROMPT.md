@@ -27,8 +27,9 @@ covers these rows too. The rule stays: this component measures or knows; Jarvis 
 - **A03 (Phase 0)** A launchd check: last exit status of every `com.jarvis.*`, `com.mind.*` and
   component agent, and the age of its log against its schedule. `com.jarvis.healthcheck` sat at
   exit 1 for 2 days unseen.
-- **A06 (Phase 0)** config-drift is right: the work config lacks the `trigger-recall` hook. Anze
-  decides both or personal-only (D2). If personal-only, the check needs an allowlist entry.
+- **A06 (Phase 0)** config-drift is right: the work config lacks the `trigger-recall` hook. Decided
+  2026-10-21 (D2): the hook goes into both configs, so no allowlist entry; the check goes green
+  once it does.
 - **A07 (Phase 0)** A check that finds something must not look like a crash: today it exits 1,
   and Jarvis retries it 3 times, burn-alerts and remediates it. 74% of alerts are such meta-alerts.
   Agree the contract with Jarvis (a distinct exit code or a result file) before changing either.
