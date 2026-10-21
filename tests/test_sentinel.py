@@ -159,7 +159,7 @@ def test_dep_rehearsal_check_reads_the_last_run_and_picks_targets():
     dr.ARTIFACT = _TMP / "state" / "checks" / "dep-rehearsal.json"
     dr.ARTIFACT.parent.mkdir(parents=True, exist_ok=True)
     dr.ARTIFACT.unlink(missing_ok=True)
-    assert dr.check() == dr.FINDING_EXIT  # no artifact: the run never happened
+    assert dr.check() == 1  # no artifact: the check cannot run
     dr.ARTIFACT.write_text(json.dumps({"ran_at": "t", "outcome": "error", "error": "boom"}))
     assert dr.check() == dr.FINDING_EXIT
     dr.ARTIFACT.write_text(json.dumps({"ran_at": "t", "outcome": "ran",
@@ -171,6 +171,28 @@ def test_dep_rehearsal_check_reads_the_last_run_and_picks_targets():
     assert dr.pick("0.4.0", {"0.4.1": old, "0.5.0": old}, dt.datetime(2026, 9, 1)) == ("0.4.1", "0.5.0")
     assert dr.group_key("@angular/core") == dr.group_key("@angular-devkit/build-angular") == "angular"
     assert dr.group_key("@types/node") == "@types/node" and dr.group_key("@nestjs/core") == "@nestjs"
+
+
+def test_services_drill_closed_and_wedged_listeners():
+    import json
+    import socket
+    svc = _load_check("check-services.py")
+    svc.TIMEOUT_S = 1
+    wedged = socket.socket()
+    wedged.bind(("127.0.0.1", 0))
+    wedged.listen(1)  # accepts into the backlog, never answers: Mind on 10-18
+    closed = socket.socket()
+    closed.bind(("127.0.0.1", 0))
+    closed_port = closed.getsockname()[1]
+    closed.close()
+    try:
+        code = svc.main({"wedged": (f"http://127.0.0.1:{wedged.getsockname()[1]}/health", "w"),
+                         "closed": (f"http://127.0.0.1:{closed_port}/health", "c")}, _TMP / "services.json")
+    finally:
+        wedged.close()
+    doc = json.loads((_TMP / "services.json").read_text())
+    assert code == svc.FINDING_EXIT
+    assert [a["key"] for a in doc["alerts"]] == ["service-down:wedged", "service-down:closed"]
 
 
 if __name__ == "__main__":
