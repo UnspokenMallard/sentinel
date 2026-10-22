@@ -55,6 +55,9 @@ STORES: list[tuple[str, str, object]] = [
     ("jarvis.db", "jarvis.db", "db-copy"),
     ("memory store (memory.db)", "memory.db", "db-copy"),
     ("yggdrasil (ygg.db)", "ygg.db", "db-copy"),
+    *[(f"{n} home", f"{H}/.{n.lower()}", "mac-backup")
+      for n in ("Mind", "Budget", "Sentinel", "Herald", "Forge", "Gateway", "Analyst")],
+    *[(f"{n}.db", f"{n}.db", "db-copy") for n in ("budget", "sentinel", "herald", "forge", "gateway")],
     ("Claude configs", f"{H}/.claude-personal", "mac-backup"),
     ("Claude work config", f"{H}/.claude-work", "mac-backup"),
     ("repositories (unpushed work)", f"{H}/code", "mac-backup"),
