@@ -28,3 +28,12 @@ quiet_resolve_s = 86400
 "53522bae9" = "er-web: deletes scripts/Test-WatchDeploy.ps1 and one more file on purpose; Anze acknowledged 2026-10-22"
 "cb5f7ec5a" = "er-web: deletes js/common/zoomHandler file on purpose; Anze acknowledged 2026-10-22"
 "6f68977f7" = "er-web: deletes img/pageNotFound.jpg on purpose; Anze acknowledged 2026-10-22"
+
+# ssh -L listeners that belong on a port (checks/check-dev-servers.py): port = why. A declared tunnel is listed
+# as info, not "other". A second process on the same port (e.g. the er-api mockBackend on 8092-8094) is still a finding.
+[dev_servers.tunnels]
+8092 = "com.anzes.nuc-backend-tunnel to nuc"
+8093 = "com.anzes.nuc-backend-tunnel to nuc"
+8094 = "com.anzes.nuc-backend-tunnel to nuc"
+8099 = "com.anzes.nuc-backend-tunnel to nuc"
+2283 = "com.anzes.immich-tunnel to nuc:2284"

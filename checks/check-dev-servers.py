@@ -28,6 +28,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from datetime import datetime
 from pathlib import Path
 
@@ -39,6 +40,7 @@ CODE = HOME / "code"
 REPORT = JARVIS / "reports" / "dev-servers" / "latest.md"
 CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "dev-servers.json"
+CONFIG = Path.home() / ".sentinel" / "config.toml"
 DEV_CMDS = re.compile(r"^(node|python[\d.]*|ruby|java|deno|bun|php|ssh|ng|vite|tsx|ts-node)$", re.I)
 WATCH_RE = re.compile(r"\bwatch\b|--watch|nodemon|ng serve|\bvite\b|ts-node-dev|tsx watch|webpack serve|"
                       r"--reload|runserver", re.I)
@@ -73,12 +75,30 @@ def listeners() -> list[dict]:
     return rows
 
 
-def conflicts(rows: list[dict]) -> list[str]:
-    """Ports bound by more than one process. Pure, for the selftest."""
+def declared_tunnels() -> dict[int, str]:
+    """[dev_servers.tunnels] in ~/.sentinel/config.toml: port -> why an ssh -L listener belongs there."""
+    try:
+        cfg = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+    return {int(k): v for k, v in ((cfg.get("dev_servers") or {}).get("tunnels") or {}).items()}
+
+
+def is_tunnel(rows: list[dict], pid: int, declared: dict[int, str]) -> bool:
+    """A process is a declared tunnel when it is ssh and every port it listens on is declared."""
+    mine = [r for r in rows if r["pid"] == pid]
+    return bool(mine) and all(r["command"] == "ssh" and r["port"] in declared for r in mine)
+
+
+def conflicts(rows: list[dict], declared: dict[int, str] | None = None) -> list[str]:
+    """Ports bound by more than one process. A declared tunnel on the port is named, not excused: the other
+    process still shadows it. Pure, for the selftest."""
+    declared = declared or {}
     by_port: dict[int, set[tuple[int, str]]] = {}
     for r in rows:
         by_port.setdefault(r["port"], set()).add((r["pid"], r["command"]))
     return [f"port {port}: " + ", ".join(f"{c} (pid {p})" for p, c in sorted(procs))
+            + (f" [{port} is a declared tunnel: {declared[port]}]" if port in declared else "")
             for port, procs in sorted(by_port.items()) if len(procs) > 1]
 
 
@@ -123,7 +143,8 @@ def repo_state(cwd: str, start_ts: float | None) -> dict:
 
 def main() -> int:
     rows = listeners()
-    clash = conflicts(rows)
+    declared = declared_tunnels()
+    clash = conflicts(rows, declared)
     servers: list[dict] = []
     for pid in sorted({r["pid"] for r in rows if DEV_CMDS.match(r["command"])}):
         info = proc_info(pid)
@@ -133,7 +154,7 @@ def main() -> int:
         watch = bool(WATCH_RE.search(info["args"]))
         stale = bool(state.get("changed_since_start")) and not watch
         servers.append({"pid": pid, "command": cmd, "ports": ports, **info, **state, "watch_mode": watch,
-                        "stale": stale})
+                        "stale": stale, "tunnel": is_tunnel(rows, pid, declared)})
 
     now = datetime.now()
     def age(ts: float | None) -> str:
@@ -148,7 +169,8 @@ def main() -> int:
         lines += ["## PORT CONFLICTS (two processes on one port: 'localhost' may reach either)", ""]
         lines += [f"- {c}" for c in clash] + [""]
     in_repo = [s for s in servers if s.get("repo")]
-    other = [s for s in servers if not s.get("repo")]
+    tunnels = [s for s in servers if s["tunnel"]]
+    other = [s for s in servers if not s.get("repo") and not s["tunnel"]]
     lines += ["## In a repository under ~/code", ""]
     for s in in_repo:
         flag = " **STALE: source changed after start**" if s["stale"] else (" (watch mode)" if s["watch_mode"] else "")
@@ -162,13 +184,15 @@ def main() -> int:
     lines += ["", "## Other listeners (tunnels, tools, Jarvis)", ""]
     lines += [f"- {', '.join(s['ports'])} - {s['command']} pid {s['pid']}, up {age(s['start_ts'])}, "
               f"cwd {s['cwd'] or '?'}" for s in other] or ["None."]
+    lines += ["", "## Declared tunnels (info)", ""]
+    lines += [f"- {', '.join(s['ports'])} - ssh pid {s['pid']}, up {age(s['start_ts'])}" for s in tunnels] or ["None."]
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     REPORT.write_text("\n".join(lines) + "\n")
     ARTIFACT.parent.mkdir(parents=True, exist_ok=True)
     ARTIFACT.write_text(json.dumps({"checked_at": now.astimezone().isoformat(), "conflicts": clash,
-                                    "servers": servers}, indent=2))
+                                    "servers": servers, "declared_tunnels": {str(p): w for p, w in declared.items()}}, indent=2))
     stale = [s for s in servers if s["stale"]]
-    summary = f"{len(in_repo)} repo server(s), {len(stale)} stale, {len(other)} other listener(s)"
+    summary = f"{len(in_repo)} repo server(s), {len(stale)} stale, {len(other)} other listener(s), {len(tunnels)} declared tunnel(s)"
     if "--print" in sys.argv or os.isatty(1):
         print("\n".join(lines))
     if clash:

@@ -218,6 +218,18 @@ def test_services_cover_the_localhost_daemons():
     assert {"ntfy", "crowdsec", "ollama", "syncthing"} <= set(svc.SERVICES)
 
 
+def test_dev_servers_declared_tunnel_is_info_but_a_second_process_is_still_a_clash():
+    ds = _load_check("check-dev-servers.py")
+    declared = {8092: "nuc"}
+    ssh = {"pid": 1, "command": "ssh", "address": "127.0.0.1", "port": 8092}
+    node = {"pid": 2, "command": "node", "address": "*", "port": 8092}
+    assert ds.is_tunnel([ssh], 1, declared) and not ds.is_tunnel([node], 2, declared)
+    assert not ds.is_tunnel([ssh, {**ssh, "port": 9999}], 1, declared)  # one undeclared port breaks it
+    assert ds.conflicts([ssh], declared) == []
+    clash = ds.conflicts([ssh, node], declared)
+    assert len(clash) == 1 and "declared tunnel: nuc" in clash[0]
+
+
 if __name__ == "__main__":
     n = 0
     for name, fn in list(globals().items()):
