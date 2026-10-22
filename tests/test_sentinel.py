@@ -204,6 +204,15 @@ def test_launchd_flags_only_idle_agents_with_a_bad_exit():
     assert doc["failing"] == ["com.jarvis.healthcheck last exited 1"] and len(doc["rows"]) == 3
 
 
+def test_launchd_watches_anzes_and_brew_agents_and_exempts_keepalive_sigterm():
+    lc = _load_check("check-launchd.py")
+    listing = ("PID\tStatus\tLabel\n-\t-15\tcom.anzes.helper\n-\t-15\tcom.anzes.mac-backup\n"
+               "-\t0\tcom.anzes.env-check\n-\t1\tsh.brew.ollama\n-\t1\tsh.brew.other\n-\t1\tcom.apple.x\n")
+    rows = lc.parse(listing, {"com.anzes.helper", "sh.brew.ollama"})
+    assert [r["label"] for r in rows] == ["com.anzes.helper", "com.anzes.mac-backup", "com.anzes.env-check", "sh.brew.ollama"]
+    assert [r["label"] for r in rows if r["failing"]] == ["com.anzes.mac-backup", "sh.brew.ollama"]
+
+
 if __name__ == "__main__":
     n = 0
     for name, fn in list(globals().items()):

@@ -13,6 +13,7 @@ if _sys.version_info < (3, 11):  # /usr/bin/python3 is 3.9 (no tomllib); the dae
                      "run it with ~/.jarvis/.venv/bin/python")
 
 import json
+import plistlib
 import re
 import subprocess
 import sys
@@ -20,11 +21,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ARTIFACT = Path.home() / ".sentinel" / "state" / "checks" / "launchd.json"
-LABEL_RE = re.compile(r"^com\.(jarvis|mind|budget|sentinel|herald|forge|gateway|analyst)\.")
+AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
+LABEL_RE = re.compile(r"^(com\.(jarvis|mind|budget|sentinel|herald|forge|gateway|analyst|anzes?)\.|sh\.brew\.(syncthing|ollama)$)")
+SIGTERM_EXIT = -15  # launchctl list shows a stopped job as -15; KeepAlive restarts it, so it is no failure
 
 
-def parse(listing: str) -> list[dict]:
-    """Rows of `launchctl list` for our agents. A running agent's status is its previous exit, so only idle ones fail."""
+def keepalive_labels(agents_dir: Path = AGENTS_DIR) -> set[str]:
+    """Labels whose plist sets KeepAlive (true or a condition dict)."""
+    out = set()
+    for f in agents_dir.glob("*.plist"):
+        try:
+            d = plistlib.loads(f.read_bytes())
+        except Exception:  # noqa: BLE001 - an unreadable plist only loses the SIGTERM exemption
+            continue
+        if d.get("KeepAlive"):
+            out.add(d.get("Label", f.stem))
+    return out
+
+
+def parse(listing: str, keepalive: set[str] = frozenset()) -> list[dict]:
+    """Rows of `launchctl list` for our agents. A running agent's status is its previous exit, so only idle ones fail.
+    A one-shot (no KeepAlive) that exited 0 never fails; a KeepAlive agent that exited -15 is not counted."""
     rows = []
     for line in listing.splitlines()[1:]:
         parts = line.split("\t")
@@ -32,8 +49,9 @@ def parse(listing: str) -> list[dict]:
             continue
         pid, status, label = parts
         running = pid != "-"
-        rows.append({"label": label, "running": running, "last_exit": int(status),
-                     "failing": not running and int(status) != 0})
+        code = int(status)
+        failing = not running and code != 0 and not (code == SIGTERM_EXIT and label in keepalive)
+        rows.append({"label": label, "running": running, "last_exit": code, "failing": failing})
     return rows
 
 
@@ -41,7 +59,7 @@ def parse(listing: str) -> list[dict]:
 def main(listing: str | None = None, artifact: Path = ARTIFACT) -> int:
     if listing is None:
         listing = subprocess.run(["launchctl", "list"], capture_output=True, text=True, timeout=30, check=True).stdout
-    rows = parse(listing)
+    rows = parse(listing, keepalive_labels())
     failing = [f"{r['label']} last exited {r['last_exit']}" for r in rows if r["failing"]]
     artifact.parent.mkdir(parents=True, exist_ok=True)
     artifact.write_text(json.dumps({"checked_at": datetime.now(timezone.utc).isoformat(), "shadow": True,
