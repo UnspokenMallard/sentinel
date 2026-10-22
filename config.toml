@@ -25,3 +25,6 @@ quiet_resolve_s = 86400
 "094df756c" = ".jarvis: untracks .hud-attachments/handoff.md, excluded from git on purpose (2026-10-16)"
 "150632c36" = "er-web: restyle commit replaces the zoomHandler template with a component stylesheet, deletes zoomHandler.tpl.html on purpose (2026-10-21)"
 "430102346" = "er-web: 404 page rebuild drops img/pageNotFound.jpg, the new empty state no longer uses it (2026-10-21)"
+"53522bae9" = "er-web: deletes scripts/Test-WatchDeploy.ps1 and one more file on purpose; Anze acknowledged 2026-10-22"
+"cb5f7ec5a" = "er-web: deletes js/common/zoomHandler file on purpose; Anze acknowledged 2026-10-22"
+"6f68977f7" = "er-web: deletes img/pageNotFound.jpg on purpose; Anze acknowledged 2026-10-22"
