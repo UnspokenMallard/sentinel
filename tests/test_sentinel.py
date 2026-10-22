@@ -213,6 +213,11 @@ def test_launchd_watches_anzes_and_brew_agents_and_exempts_keepalive_sigterm():
     assert [r["label"] for r in rows if r["failing"]] == ["com.anzes.mac-backup", "sh.brew.ollama"]
 
 
+def test_services_cover_the_localhost_daemons():
+    svc = _load_check("check-services.py")
+    assert {"ntfy", "crowdsec", "ollama", "syncthing"} <= set(svc.SERVICES)
+
+
 if __name__ == "__main__":
     n = 0
     for name, fn in list(globals().items()):
