@@ -13,7 +13,7 @@ Earliest-useful dates, not deadlines; being late costs nothing.
 | 2026-10-19 07:30 (Jarvis job `sentinel-first-week`, automatic) | `log-signatures` ran on schedule via `sentinel-job.sh`; every `sentinel-job.sh` job last ran clean; no open `handler-failed` for them. Result in `~/.jarvis/state/sentinel-first-week.md`; a FAIL is one warn alert. On PASS, remove the job row from `~/.jarvis/config.toml` and the script | log-signatures' first Monday run (06:45) |
 | DONE 2026-10-18 | Dropped `alerts` and `incidents` from `~/.jarvis/jarvis.db` on Anze's yes. `jarvis.db.bak-sentinel` was already gone | Anze's confirmation |
 | ~~with Herald's build~~ DONE 2026-10-17 | `core.notify`'s push is Herald's desktop toast (`POST /toast`, `herald/toast.py`); the cooldown, backoff, postponing and `alerts.log` stay in Jarvis because they decide whether to say it (see `~/.herald/DESIGN.md` "As built") | Herald |
-| DONE 2026-10-18 (mostly) | `backup-drill-sample` moved to `checks/`; `mac-backup` repointed. `local-llm-perf` runs through `sentinel-job.sh` via a wrapper, its script and artifact stay in Gateway. `alert-review` already runs under Analyst. `health-check.py` stays outside the daemon (Anze's decision). The three artifact resolvers stay in Jarvis (decided: Jarvis registers them) | none |
+| DONE 2026-10-18 (mostly) | `backup-drill-sample` moved to `checks/`; `mac-backup` repointed. `alert-review` already runs under Analyst. `health-check.py` stays outside the daemon (Anze's decision). The three artifact resolvers stay in Jarvis (decided: Jarvis registers them) | none |
 
 ## Audit 2026-10-21: your items
 

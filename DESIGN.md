@@ -25,7 +25,7 @@ Herald, postpone (`postpone.py` stays in Jarvis), diagnose sessions in the HUD, 
 - Checks (scripts today, each a Jarvis job): `check-backup`, `check-builds`, `check-disk`,
   `check-endpoints`, `check-expiry`, `check-nuc`, `check-paths`, `check-stalled`,
   `check-dev-servers`, `check-host-cpu-load`, `check-retired` / `retired`, `repo-versions`,
-  `config-drift`, `log-signatures`, `backup-drill-sample`, `local-llm-perf`, and
+  `config-drift`, `log-signatures`, `backup-drill-sample`, and
   `health-check.py` (its launchd agent `com.jarvis.healthcheck` becomes a Jarvis job).
 - The store and lifecycle: `daemon/incidents.py`, the `alerts` and incident tables in
   `jarvis.db`, `ALERTS-NOW.md` generation, `alert-review.py` (the LLM review of noisy alerts
@@ -96,9 +96,6 @@ Two stages in one session (Anze: "store first, checks second").
     `repo-versions` still import Jarvis's `scripts/notmine.py`.
   - Moved 2026-10-18: `backup-drill-sample` to `checks/` (a helper, not a job; `mac-backup` now calls
     `~/.sentinel/checks/backup-drill-sample.py`).
-  - `local-llm-perf` (2026-10-18): `checks/local-llm-perf.py` wraps Gateway's script, and the Jarvis job calls
-    `sentinel-job.sh check local-llm-perf`. The script and its artifact stay in `~/.gateway/state` (Jarvis's
-    triage reads them), so the wrapper writes no envelope and `sentinel checks` shows no `ran_at` for it.
   - Kept outside Sentinel, by Anze's decision 2026-10-18: `health-check.py`. Its launchd agent
     `com.jarvis.healthcheck` runs it outside the daemon on purpose (it must see a dead daemon), so it does not
     become a Jarvis job as this section planned.
