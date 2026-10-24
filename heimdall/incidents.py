@@ -8,7 +8,9 @@ JOURNAL.md.
 
 An incident is keyed on the part of the alert key before the first `:` (`stuck-event`, `loop-crash`),
 and the individual keys are its members. 94 stuck events and one crashed worker were one incident with
-one cause. One open incident per kind, enforced by a partial unique index.
+one cause. One open incident per kind. An incident is a Mimir record (`heimdall.incident`, key = its id); while it
+is open it carries `open: true` and `open_kind: <kind>`, which resolve removes. Mimir holds the data;
+Heimdall keeps no database of its own.
 
 ### Resolution is evidence, and where there is none it says so
 
@@ -31,10 +33,13 @@ from __future__ import annotations
 import json
 import time
 from datetime import datetime
-from typing import Any, Callable
+from typing import Callable
 
 from . import store
+from ._mimir import records as mr
 from .store import log
+
+KIND = "heimdall.incident"
 
 # resolved, evidence  |  still open, evidence  |  None = cannot tell
 Resolver = Callable[[dict], "tuple[bool, str] | None"]
@@ -78,73 +83,87 @@ def resolver(kind: str) -> Callable[[Resolver], Resolver]:
     return wrap
 
 
+def _flat(data: dict) -> dict:
+    """The incident as callers know it: every column, no bookkeeping fields."""
+    return {c: data.get(c) for c in _COLS}
+
+
+def _open_row(kind: str) -> dict | None:
+    rows = mr.query(kind=KIND, where="open_kind:" + json.dumps(kind), limit=1, source=store.SOURCE)
+    return rows[0]["data"] if rows else None
+
+
+def _all() -> list[dict]:
+    return [_flat(r["data"]) for r in mr.query(kind=KIND, limit=5000, source=store.SOURCE)]
+
+
 def record_alert(key: str, message: str, severity: str = "warn", evidence: str | None = None) -> int | None:
     """Open or refresh the incident this alert belongs to; returns its id.
 
     Called on every raise, not only the ones Jarvis delivers: a repeat held back by cooldown is still
     evidence the condition holds, and `last_seen_at` is what quiet-resolution reads.
 
-    Never raises. A bookkeeping error here must not be able to swallow an alert.
+    Never raises. A bookkeeping error here must not be able to swallow an alert. It needs Mimir to read
+    the open incident, so while Mimir is down the incident is not recorded; the alert line still is.
     """
     try:
         if not _cfg()["enabled"]:
             return None
         now = time.time()
         kind = kind_of(key)
-        opened = False
-        with store.connect() as conn:
-            row = conn.execute(
-                "SELECT id, members, member_count FROM incidents WHERE kind = ? AND resolved_at IS NULL",
-                (kind,),
-            ).fetchone()
-            if row is None:
-                cur = conn.execute(
-                    "INSERT INTO incidents(kind, summary, severity, opened_at, last_seen_at, hits, members, "
-                    "member_count, evidence) VALUES(?, ?, ?, ?, ?, 1, ?, 1, ?)",
-                    (kind, message[:500], severity, now, now, json.dumps([key]), evidence),
-                )
-                incident_id = int(cur.lastrowid) if cur.lastrowid is not None else None
-                opened = True
-            else:
-                incident_id, members_json, member_count = row
+        # shortcut: two writers can open the same kind at once (no unique index in Mimir); Heimdall has one
+        # writer, the daemon. Upgrade to a per-kind guard record if a second process starts raising.
+        for _ in range(5):
+            row = _open_row(kind)
+            if row is not None:
                 try:
-                    members = list(json.loads(members_json))
+                    members = list(json.loads(row.get("members") or "[]"))
                 except (TypeError, ValueError):
                     members = []
                 new_member = key not in members
                 if new_member and len(members) < _MEMBER_SAMPLE:
                     members.append(key)
-                conn.execute(
-                    "UPDATE incidents SET last_seen_at = ?, hits = hits + 1, summary = ?, severity = ?, "
-                    "members = ?, member_count = ?, evidence = COALESCE(?, evidence) WHERE id = ?",
-                    (now, message[:500], severity, json.dumps(members),
-                     member_count + (1 if new_member else 0), evidence, incident_id),
-                )
-        if opened:
-            alerts_now()
-        return int(incident_id) if incident_id is not None else None
+                data = {"last_seen_at": now, "summary": message[:500], "severity": severity,
+                        "members": json.dumps(members)}
+                if evidence is not None:
+                    data["evidence"] = evidence
+                mr.bump(store.SOURCE, KIND, str(row["id"]), {"hits": 1, "member_count": 1 if new_member else 0},
+                        data, at=now)
+                return int(row["id"])
+            incident_id = int(mr.agg("max", kind=KIND, field="id", source=store.SOURCE) or 0) + 1
+            data = {"id": incident_id, "kind": kind, "summary": message[:500], "severity": severity,
+                    "opened_at": now, "last_seen_at": now, "hits": 1, "members": json.dumps([key]),
+                    "member_count": 1, "evidence": evidence, "open": True, "open_kind": kind}
+            # if_absent: a lost race for the id returns False and the loop picks the next one
+            if mr.put(store.SOURCE, KIND, str(incident_id), data, at=now, if_absent=True, wait=True):
+                alerts_now()
+                return incident_id
+        return None
     except Exception as exc:  # noqa: BLE001 - bookkeeping must never eat an alert
         log.debug("heimdall: could not record %s: %s", key, exc)
         return None
 
 
 def open_incidents(kinds: list[str] | None = None) -> list[dict]:
-    sql = f"SELECT {', '.join(_COLS[:9])}, evidence FROM incidents WHERE resolved_at IS NULL"
-    args: list[Any] = []
-    if kinds:
-        sql += " AND kind IN (%s)" % ",".join("?" * len(kinds))
-        args.extend(kinds)
-    sql += " ORDER BY opened_at"
     cols = (*_COLS[:9], "evidence")
-    with store.connect() as conn:
-        return [dict(zip(cols, r)) for r in conn.execute(sql, args).fetchall()]
+    if kinds:
+        rows = [r for k in kinds
+                for r in mr.query(kind=KIND, where="open_kind:" + json.dumps(k), limit=5000, source=store.SOURCE)]
+    else:
+        rows = mr.query(kind=KIND, where="open:true", limit=5000, source=store.SOURCE)
+    return sorted(({c: r["data"].get(c) for c in cols} for r in rows), key=lambda i: i["opened_at"])
 
 
 def get(incident_id: int) -> dict | None:
     """One incident, open or resolved."""
-    with store.connect() as conn:
-        row = conn.execute(f"SELECT {', '.join(_COLS)} FROM incidents WHERE id = ?", (incident_id,)).fetchone()
-    return dict(zip(_COLS, row)) if row else None
+    data = mr.get(KIND, str(incident_id), source=store.SOURCE)
+    return _flat(data) if data else None
+
+
+def recent(days: int = 7) -> list[dict]:
+    """Incidents opened in the last `days`, newest first."""
+    cutoff = time.time() - days * 86400
+    return sorted((i for i in _all() if i["opened_at"] >= cutoff), key=lambda i: i["opened_at"], reverse=True)
 
 
 def unresolved(kind_prefixes: list[str]) -> list[dict]:
@@ -156,20 +175,15 @@ def unresolved(kind_prefixes: list[str]) -> list[dict]:
 def resolve(incident_id: int, by: str, resolution: str) -> bool:
     """Close one incident. Returns False if it was already closed.
 
-    Idempotent by the `resolved_at IS NULL` guard rather than by reading first: the reconcile pass and
-    a human at a terminal can race, and the loser should be a no-op, not a rewrite of someone else's
-    resolution.
+    Idempotent by the `open` guard rather than by reading first: the reconcile pass and a human at a
+    terminal can race, and the loser should be a no-op, not a rewrite of someone else's resolution.
     """
-    with store.connect() as conn:
-        cur = conn.execute(
-            "UPDATE incidents SET resolved_at = ?, resolved_by = ?, resolution = ? "
-            "WHERE id = ? AND resolved_at IS NULL",
-            (time.time(), by, resolution[:500], incident_id),
-        )
-        done = cur.rowcount > 0
+    done = mr.patch(store.SOURCE, KIND, str(incident_id),
+                    {"resolved_at": time.time(), "resolved_by": by, "resolution": resolution[:500],
+                     "open": None, "open_kind": None}, if_={"open": True}, wait=True)
     if done:
         alerts_now()
-    return done
+    return bool(done)
 
 
 def reconcile() -> list[str]:
@@ -209,12 +223,15 @@ def reconcile() -> list[str]:
 
 
 def prune(retain_days: int = 90) -> int:
-    """Resolved incidents only. An open one is never pruned, at any age."""
+    """Resolved incidents only. An open one is never pruned, at any age. The newest id stays, so the next
+    id is never one that was already handed out (the memory and Notion publishers key on it)."""
     cutoff = time.time() - retain_days * 86400
-    with store.connect() as conn:
-        return conn.execute(
-            "DELETE FROM incidents WHERE resolved_at IS NOT NULL AND resolved_at < ?", (cutoff,)
-        ).rowcount
+    incs = _all()
+    newest = max((i["id"] for i in incs), default=None)
+    old = [i for i in incs if i["resolved_at"] and i["resolved_at"] < cutoff and i["id"] != newest]
+    for i in old:
+        mr.delete(store.SOURCE, KIND, str(i["id"]))
+    return len(old)
 
 
 def human(seconds: float) -> str:
@@ -244,14 +261,13 @@ def summary_lines() -> list[str]:
 
 def report(days: int = 7) -> str:
     cutoff = time.time() - days * 86400
-    with store.connect() as conn:
-        recent = conn.execute(
-            "SELECT id, kind, opened_at, resolved_at, resolved_by, resolution, hits, member_count "
-            "FROM incidents WHERE opened_at >= ? ORDER BY opened_at DESC LIMIT 20", (cutoff,),
-        ).fetchall()
-        by_reason = conn.execute(
-            "SELECT resolved_by, COUNT(*) FROM incidents WHERE resolved_at >= ? GROUP BY resolved_by", (cutoff,),
-        ).fetchall()
+    incs = _all()
+    recent_rows = sorted((i for i in incs if i["opened_at"] >= cutoff), key=lambda i: i["opened_at"], reverse=True)[:20]
+    reasons: dict[str, int] = {}
+    for i in incs:
+        if i["resolved_at"] and i["resolved_at"] >= cutoff:
+            reasons[i["resolved_by"]] = reasons.get(i["resolved_by"], 0) + 1
+    by_reason = sorted(reasons.items())
 
     openrows = open_incidents()
     unresolvable = [i for i in openrows if i["kind"] not in RESOLVERS]
@@ -267,9 +283,11 @@ def report(days: int = 7) -> str:
     if openrows:
         lines += ["", "  OPEN:"]
         lines += [f"    {ln}" for ln in summary_lines()]
-    if recent:
+    if recent_rows:
         lines += ["", "  recent:"]
-        for iid, kind, opened, resolved, by, resolution, hits, members in recent:
+        for i in recent_rows:
+            iid, kind, opened, resolved, by = i["id"], i["kind"], i["opened_at"], i["resolved_at"], i["resolved_by"]
+            resolution, hits, members = i["resolution"], i["hits"], i["member_count"]
             stamp = datetime.fromtimestamp(opened).strftime("%m-%d %H:%M")
             state = f"resolved {human(resolved - opened)} later by {by}" if resolved else "OPEN"
             lines.append(f"    #{iid:<5} {stamp}  {kind:16} {hits:>4} hits  {members:>3} keys  {state}")
@@ -287,11 +305,14 @@ def alerts_now() -> bool:
     lines = [
         "# Open incidents",
         "",
-        "What is wrong right now, from Heimdall's store (`sentinel incidents`). Rewritten when an incident "
+        "What is wrong right now, from Heimdall's incidents in Mimir (`sentinel incidents`). Rewritten when an incident "
         "opens or resolves. `~/.jarvis/logs/alerts.log` is the full record of what was said.",
         "",
     ]
-    openrows = sorted(open_incidents(), key=lambda i: i["opened_at"], reverse=True)
+    try:
+        openrows = sorted(open_incidents(), key=lambda i: i["opened_at"], reverse=True)
+    except mr.MimirDown:
+        return False  # cannot tell what is open: leave the file as it was rather than say "None open"
     if not openrows:
         lines.append("None open.")
     for inc in openrows:

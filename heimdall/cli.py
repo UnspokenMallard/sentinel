@@ -15,22 +15,23 @@ import json
 import sys
 
 from . import checks, incidents
+from ._mimir import records as mr
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except mr.MimirDown:
+        print("sentinel: Mimir is not reachable; the incidents live there. Start it and run again.", file=sys.stderr)
+        return 3
+
+
+def _main(argv: list[str] | None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     cmd, rest = (argv[0] if argv else "report"), argv[1:]
     if cmd == "incidents":
         if "--json" in rest:
-            rows = incidents.open_incidents() if "--open" in rest else None
-            if rows is None:
-                days = 7
-                import time
-                with incidents.store.connect() as conn:
-                    cols = incidents._COLS
-                    rows = [dict(zip(cols, r)) for r in conn.execute(
-                        f"SELECT {', '.join(cols)} FROM incidents WHERE opened_at >= ? ORDER BY opened_at DESC",
-                        (time.time() - days * 86400,)).fetchall()]
+            rows = incidents.open_incidents() if "--open" in rest else incidents.recent(7)
             print(json.dumps(rows))
             return 0
         if "--open" in rest:

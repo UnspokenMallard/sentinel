@@ -1,64 +1,52 @@
-"""The alert record: one row per key, forever, with a count that rises on every raise."""
+"""The alert record: one Mimir record per key (`heimdall.alert`), forever, with a count that rises on every raise."""
 from __future__ import annotations
 
 import time
 
 from . import store
+from ._mimir import records as mr
+
+KIND = "heimdall.alert"
 
 
 def record(key: str, message: str, severity: str = "warn") -> int:
-    """Upsert the key's row and return its new count. Raises on a database error: the caller decides."""
+    """Count one raise of the key and return its new count. The write waits in the outbox when Mimir is
+    down and the count then reads 1 (the caller only uses it for a "(xN)" suffix)."""
     now = time.time()
-    with store.connect() as conn:
-        row = conn.execute("SELECT count FROM alerts WHERE key = ?", (key,)).fetchone()
-        if row is None:
-            conn.execute(
-                "INSERT INTO alerts(key, message, severity, first_seen, last_seen, count) VALUES(?, ?, ?, ?, ?, 1)",
-                (key, message, severity, now, now),
-            )
-            return 1
-        count = row[0] + 1
-        conn.execute("UPDATE alerts SET message = ?, severity = ?, last_seen = ?, count = ? WHERE key = ?",
-                     (message, severity, now, count, key))
-        return count
+    mr.bump(store.SOURCE, KIND, key, {"count": 1}, {"message": message, "severity": severity, "last_seen": now},
+            {"first_seen": now}, at=now)
+    try:
+        return int((mr.get(KIND, key, source=store.SOURCE) or {}).get("count", 1))
+    except mr.MimirDown:
+        return 1
 
 
 def get(key: str) -> dict | None:
-    with store.connect() as conn:
-        row = conn.execute("SELECT message, severity, first_seen, last_seen, count FROM alerts WHERE key = ?",
-                           (key,)).fetchone()
-    return dict(zip(("message", "severity", "first_seen", "last_seen", "count"), row)) if row else None
+    row = mr.get(KIND, key, source=store.SOURCE)
+    return {c: row.get(c) for c in ("message", "severity", "first_seen", "last_seen", "count")} if row else None
+
+
+def _rows(since: float | None = None, order: str = "asc", limit: int = 5000) -> list[dict]:
+    return [{**r["data"], "key": r["key"]} for r in mr.query(kind=KIND, since=since, order=order, limit=limit, source=store.SOURCE)]
 
 
 def recent(limit: int = 15) -> list[tuple]:
     """(key, message, severity, last_seen, count), newest first."""
-    with store.connect() as conn:
-        return conn.execute(
-            "SELECT key, message, severity, last_seen, count FROM alerts ORDER BY last_seen DESC LIMIT ?", (limit,)
-        ).fetchall()
+    return [(r["key"], r["message"], r["severity"], r["last_seen"], r["count"]) for r in _rows(order="desc", limit=limit)]
 
 
 def count_since(since: float) -> int:
-    """How many distinct keys fired at or after `since`."""
-    with store.connect() as conn:
-        return conn.execute("SELECT COUNT(*) FROM alerts WHERE last_seen > ?", (since,)).fetchone()[0]
+    """How many distinct keys fired after `since`."""
+    return int(mr.agg("count", kind=KIND, since=since, source=store.SOURCE) or 0)
 
 
 def sum_since(since: float, key_prefix: str | None = None) -> int:
     """Total raises of keys last seen after `since`, optionally only keys starting with `key_prefix`."""
-    sql, args = "SELECT COALESCE(SUM(count), 0) FROM alerts WHERE last_seen > ?", [since]
-    if key_prefix:
-        sql += " AND key LIKE ?"
-        args.append(key_prefix.replace("%", r"\%").replace("_", r"\_") + "%")
-        sql += " ESCAPE '\\'"
-    with store.connect() as conn:
-        return conn.execute(sql, args).fetchone()[0]
+    if not key_prefix:
+        return int(mr.agg("sum", kind=KIND, field="count", since=since, source=store.SOURCE) or 0)
+    return sum(r["count"] for r in _rows(since) if r["key"].startswith(key_prefix))
 
 
 def since(since_ts: float) -> list[tuple]:
     """(key, message, count, last_seen) for keys last seen at or after `since_ts`, oldest first."""
-    with store.connect() as conn:
-        return conn.execute(
-            "SELECT key, message, count, last_seen FROM alerts WHERE last_seen >= ? ORDER BY last_seen",
-            (since_ts,),
-        ).fetchall()
+    return [(r["key"], r["message"], r["count"], r["last_seen"]) for r in _rows(since_ts)]
