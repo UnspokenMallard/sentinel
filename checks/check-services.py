@@ -30,7 +30,6 @@ SERVICES = {  # name -> (health url, launchd label)
     "gateway": ("http://127.0.0.1:3027/health", "com.gateway.server"),
     "ntfy": ("http://127.0.0.1:2586/v1/health", "ntfy"),
     "crowdsec": ("http://127.0.0.1:8080/health", "crowdsec container"),  # LAPI, published by OrbStack
-    "ollama": ("http://127.0.0.1:11434/api/version", "sh.brew.ollama"),
     "syncthing": ("http://127.0.0.1:8384/rest/noauth/health", "sh.brew.syncthing"),
 }
 TIMEOUT_S = 5

@@ -207,15 +207,15 @@ def test_launchd_flags_only_idle_agents_with_a_bad_exit():
 def test_launchd_watches_anzes_and_brew_agents_and_exempts_keepalive_sigterm():
     lc = _load_check("check-launchd.py")
     listing = ("PID\tStatus\tLabel\n-\t-15\tcom.anzes.helper\n-\t-15\tcom.anzes.mac-backup\n"
-               "-\t0\tcom.anzes.env-check\n-\t1\tsh.brew.ollama\n-\t1\tsh.brew.other\n-\t1\tcom.apple.x\n")
-    rows = lc.parse(listing, {"com.anzes.helper", "sh.brew.ollama"})
-    assert [r["label"] for r in rows] == ["com.anzes.helper", "com.anzes.mac-backup", "com.anzes.env-check", "sh.brew.ollama"]
-    assert [r["label"] for r in rows if r["failing"]] == ["com.anzes.mac-backup", "sh.brew.ollama"]
+               "-\t0\tcom.anzes.env-check\n-\t1\tsh.brew.syncthing\n-\t1\tsh.brew.other\n-\t1\tcom.apple.x\n")
+    rows = lc.parse(listing, {"com.anzes.helper", "sh.brew.syncthing"})
+    assert [r["label"] for r in rows] == ["com.anzes.helper", "com.anzes.mac-backup", "com.anzes.env-check", "sh.brew.syncthing"]
+    assert [r["label"] for r in rows if r["failing"]] == ["com.anzes.mac-backup", "sh.brew.syncthing"]
 
 
 def test_services_cover_the_localhost_daemons():
     svc = _load_check("check-services.py")
-    assert {"ntfy", "crowdsec", "ollama", "syncthing"} <= set(svc.SERVICES)
+    assert {"ntfy", "crowdsec", "syncthing"} <= set(svc.SERVICES)
 
 
 def test_dev_servers_declared_tunnel_is_info_but_a_second_process_is_still_a_clash():

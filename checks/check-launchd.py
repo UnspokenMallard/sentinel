@@ -22,7 +22,7 @@ from pathlib import Path
 
 ARTIFACT = Path.home() / ".sentinel" / "state" / "checks" / "launchd.json"
 AGENTS_DIR = Path.home() / "Library" / "LaunchAgents"
-LABEL_RE = re.compile(r"^(com\.(jarvis|mind|budget|sentinel|herald|forge|gateway|analyst|anzes?)\.|sh\.brew\.(syncthing|ollama)$)")
+LABEL_RE = re.compile(r"^(com\.(jarvis|mind|budget|sentinel|herald|forge|gateway|analyst|anzes?)\.|sh\.brew\.syncthing$)")
 SIGTERM_EXIT = -15  # launchctl list shows a stopped job as -15; KeepAlive restarts it, so it is no failure
 
 
