@@ -63,8 +63,8 @@ covers these rows too. The rule stays: this component measures or knows; Jarvis 
 
 ## C: something is broken
 
-> Sentinel or an alert path broke. First, do not delete `state/sentinel.db`, a backup or an
-> artifact: they are the evidence. Copy the db with `sqlite3 .backup`, run
+> Sentinel or an alert path broke. First, do not delete `state/outbox.jsonl`, `state/outbox.rejected.jsonl`,
+> `state/sentinel.db.archived-2026-10-24`, a backup or an artifact: they are the evidence. Run
 > `~/.jarvis/.venv/bin/python ~/.jarvis/status.py` and the Jarvis selftest, read
 > `~/.jarvis/logs/jarvis.log`, and report before fixing. `git -C ~/.jarvis log` shows the two cutover
 > commits ("Move the alert record and incident store into Sentinel", "Move the check scripts into

@@ -10,7 +10,7 @@ an orchestrator.
 |---|---|
 | Home | `~/.sentinel`, own git repo, code and `state/` together, own venv |
 | Schedule | Jarvis triggers every check; Heimdall has no timers (`com.jarvis.healthcheck` becomes a Jarvis job) |
-| Process | CLI and library, no service; state in `state/sentinel.db` and `state/checks/*.json` |
+| Process | CLI and library, no service; alerts and incidents are Mimir records, check artifacts are `state/checks/*.json` |
 | Sessions | Built in its own session after Fafnir, from this design |
 
 ## Boundary
@@ -63,13 +63,21 @@ before touching `~/.jarvis`.
 Two stages in one session (Anze: "store first, checks second").
 
 - `heimdall/` (paths from `HEIMDALL_HOME`, default `~/.sentinel`; tests set it to scratch): `store.py`
-  (`state/sentinel.db`, config), `alerts.py` (the alert record: one row per key, count), `incidents.py`
+  (state paths, config), `alerts.py` (the alert record: one record per key, count), `incidents.py`
   (lifecycle, resolver registry, reconcile, prune, `alerts_now`), `checks.py` (runner and envelope),
   `cli.py`, `bin/sentinel`, `bin/sentinel-job.sh` (Jarvis's job entry point), `config.toml`
   (`[incidents]`, `alerts_now` path), `tests/test_heimdall.py`, `tools/migrate-from-jarvis.py` (one-off).
 - Moved with their rows: `alerts` (261) and `incidents` (55, ids kept). Anze confirmed the drop: the old
   tables were dropped from `jarvis.db` on 2026-10-18 (every old row was already in `sentinel.db`); backup
   `~/.jarvis/jarvis.db.bak-sentinel` deleted 2026-10-18.
+- **Storage (2026-10-24).** Heimdall has no database. An alert is the Mimir record `heimdall.alert` (key = alert key) and an
+  incident is `heimdall.incident` (key = its id), written and read through `mimirrecords` (Mimir's `/api/records`). The alert
+  count and an incident's hits use Mimir's `bump` op, so a raise made while Mimir is down waits in `state/outbox.jsonl` and
+  replays once, with the right count. Opening, refreshing and resolving an incident need a read, so they are online only:
+  while Mimir is down `raise_` still returns (count 1, no incident) and Jarvis still writes the alert line. An open incident
+  carries `open: true` and `open_kind: <kind>`, which resolve removes. Reads raise `MimirDown`; the CLI exits 3.
+  Incident ids are `max(id)+1` taken with `put if_absent`; prune keeps the highest id so none is handed out twice.
+  `~/.mind/tools/import-records.py heimdall` brings the old `sentinel.db` over and renames it `sentinel.db.archived-2026-10-24`.
 - `core.notify` split: Heimdall records (`heimdall.raise_(key, text, severity, evidence, incident=)`:
   the alert count and the incident), Jarvis delivers (postpone filter, cooldown with backoff,
   `alerts.log`, push). Jarvis keeps `alert_writes` and a new `alert_delivery(key, last_written)`.
