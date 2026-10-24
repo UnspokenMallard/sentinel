@@ -41,8 +41,11 @@ covers these rows too. The rule stays: this component measures or knows; Jarvis 
 - **A44 (Phase 4)** dep-rehearsal fails on "refname 'development' is ambiguous": use
   `refs/heads/development`.
 
+**Status 2026-10-25 (HUD task freyr-398c, merge with Jarvis):** A27 (e6b1f14: reads the HUD's commit-audit acknowledgements) is built. A44: `check-dep-rehearsal.py` already uses `refs/heads/development`, so only the 10-26 run is left to check. After it passes, Anze removes the `sentinel-first-week` row from `~/.jarvis/config.toml`.
+
 | When (earliest useful, not a deadline) | Step | Waits on |
 |---|---|---|
+| first commit-audit Acknowledge after the freyr-398c merge | the acknowledged commit stays out of the next run's flags | the merge |
 | with Phase 0 | A07 contract with Jarvis first, then the A01 and A03 checks | Phase 0 approval |
 | 2026-10-26 (after the Monday run) | A44: did dep-rehearsal fail again | the weekly run |
 | with Phase 2 | A24, A27 | Phase 2 approval |
