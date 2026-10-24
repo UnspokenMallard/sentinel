@@ -1,8 +1,8 @@
-"""Sentinel: what is true about the machines right now (see ../DESIGN.md).
+"""Heimdall: what is true about the machines right now (see ../DESIGN.md).
 
-    import sentinel
-    sentinel.raise_("disk:/", "93% full", "warn", evidence="df says ...")   # record, never deliver
-    sentinel.open_incidents(); sentinel.resolve(id, "human", "why")
+    import heimdall
+    heimdall.raise_("disk:/", "93% full", "warn", evidence="df says ...")   # record, never deliver
+    heimdall.open_incidents(); heimdall.resolve(id, "human", "why")
 
 Observes and records. Never pings, posts, postpones or holds work: Jarvis reads and acts.
 """

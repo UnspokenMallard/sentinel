@@ -35,7 +35,7 @@ FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FIND
 HOME = Path.home()
 JARVIS = HOME / ".jarvis"
 REPORT = JARVIS / "reports" / "retired-tools" / "latest.md"
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "retired.json"
 LAUNCH_AGENTS = HOME / "Library" / "LaunchAgents"
 

@@ -25,7 +25,7 @@ FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FIND
 
 JARVIS = Path.home() / ".jarvis"
 REGISTRY = JARVIS / "secrets" / "expiry.json"
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "expiry.json"
 WARN_DAYS = 14
 SECRET_FILES = sorted(p.stem for p in (JARVIS / "secrets").glob("*.json") if p.name != "expiry.json")

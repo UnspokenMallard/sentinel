@@ -38,7 +38,7 @@ JARVIS = HOME / ".jarvis"
 CONFIGS = {"personal": HOME / ".claude-personal" / "settings.json",
            "work": HOME / ".claude-work" / "settings.json"}
 REPORT = JARVIS / "reports" / "config-drift" / "latest.md"
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "config-drift.json"
 BACKUPS = CHECKS / "config-drift"
 SOURCE = "config-drift"
@@ -101,8 +101,8 @@ def drift(settings: dict[str, dict]) -> dict[str, dict]:
 
 
 def _review():
-    sys.path.insert(0, str(Path.home() / ".forge"))  # the review queue is Forge's since 2026-10-17
-    from forge import review  # noqa: E402
+    sys.path.insert(0, str(Path.home() / ".forge"))  # the review queue is Brokkr's since 2026-10-17
+    from brokkr import review  # noqa: E402
 
     return review
 

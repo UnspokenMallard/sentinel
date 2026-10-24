@@ -35,7 +35,7 @@ FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FIND
 
 SAMPLE_S = 20
 IDLE_FAIL_H = 4.0
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "stalled.json"
 SESSION_RE = re.compile(r"(/\.local/bin/claude\b|\bclaude -p\b|/private/tmp/claude-501/)")
 EXCLUDE_RE = re.compile(r"Claude\.app|chrome-native-host|shell-snapshots|^tail -f /private/tmp/claude-501/")  # orphan tail of a task output, not a session (2026-10-20)

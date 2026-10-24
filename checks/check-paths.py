@@ -36,7 +36,7 @@ FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FIND
 
 HOME = Path.home()
 J = HOME / ".jarvis"
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "paths.json"
 # `root * "/x"`, `root "/x"`, `output file "/x"` - quoted or bare
 CADDY_PATH_RE = re.compile(r'^\s*(root(?:\s+\*)?|output file)\s+"?(/[^"\s{]+(?: [^"\s{]+)*?)"?\s*(?:\{|$)', re.M)

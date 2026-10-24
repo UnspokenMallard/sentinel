@@ -1,8 +1,8 @@
-"""Sentinel's store: state/sentinel.db (WAL), state files, config.toml.
+"""Heimdall's store: state/sentinel.db (WAL), state files, config.toml.
 
 Paths are module attributes read at call time, so a test points them at a scratch directory
 (`store.ROOT`, `store.STATE`, `store.DB_PATH`, `store.CONFIG`, `store.ALERTS_NOW`) the way
-Budget's tests do. Stdlib only: imported by Jarvis's venv and Sentinel's own.
+Fafnir's tests do. Stdlib only: imported by Jarvis's venv and Heimdall's own.
 """
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ import sqlite3
 import tomllib
 from pathlib import Path
 
-ROOT = Path(os.environ.get("SENTINEL_HOME", Path.home() / ".sentinel"))
+ROOT = Path(os.environ.get("HEIMDALL_HOME", Path.home() / ".sentinel"))
 STATE = ROOT / "state"
 DB_PATH = STATE / "sentinel.db"
 CONFIG = ROOT / "config.toml"
-log = logging.getLogger("sentinel")
+log = logging.getLogger("heimdall")
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -94,5 +94,5 @@ def get_meta(key: str) -> str | None:
 
 
 # Where `alerts-now` writes. config.toml `alerts_now` points it at the file Jarvis's readers already
-# know (~/.jarvis/ALERTS-NOW.md); without a config it is Sentinel's own state (tests).
+# know (~/.jarvis/ALERTS-NOW.md); without a config it is Heimdall's own state (tests).
 ALERTS_NOW = Path(str(load_config().get("alerts_now") or STATE / "ALERTS-NOW.md")).expanduser()

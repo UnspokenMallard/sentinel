@@ -21,7 +21,7 @@ from pathlib import Path
 
 FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FINDING_EXIT
 
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 STATUS = CHECKS
 ARTIFACT = STATUS / "host-cpu-load.json"
 

@@ -33,7 +33,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 JARVIS = Path.home() / ".jarvis"
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "builds.json"
 ROOTS = [Path.home() / "code"]
 BAD = {"failure", "timed_out", "startup_failure"}
@@ -203,7 +203,7 @@ def main() -> int:
         print("builds: no remote could be asked: " + "; ".join(errors), file=sys.stderr)
         return 1
     ARTIFACT.parent.mkdir(parents=True, exist_ok=True)
-    # "alerts": what Jarvis should say. Sentinel records; the job handler delivers (deliver_alerts).
+    # "alerts": what Jarvis should say. Heimdall records; the job handler delivers (deliver_alerts).
     alerts = [] if dry else (
         [{"key": k, "message": m, "severity": "error", "cooldown_s": 3600} for k, m in failures]
         + [{"key": k, "message": m, "severity": "warn", "cooldown_s": 86400} for k, m in slow.items()])

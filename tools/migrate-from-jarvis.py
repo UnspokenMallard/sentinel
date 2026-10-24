@@ -1,9 +1,9 @@
 #!/Users/anzes/.jarvis/.venv/bin/python
-"""One-off cutover (2026-10-17): copy Jarvis's `alerts` and `incidents` rows into Sentinel's store.
+"""One-off cutover (2026-10-17): copy Jarvis's `alerts` and `incidents` rows into Heimdall's store.
 
 Copies, never drops: the old tables stay in jarvis.db until Anze confirms. Backs up jarvis.db first and
 refuses to overwrite an existing backup. Incident ids are kept. Delivery state (alerts.last_written)
-goes to jarvis.db `alert_delivery`. Idempotent: a row already in Sentinel with a newer last_seen wins.
+goes to jarvis.db `alert_delivery`. Idempotent: a row already in Heimdall with a newer last_seen wins.
 """
 import sqlite3
 import subprocess
@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path.home() / ".sentinel"))
-from sentinel import store  # noqa: E402
+from heimdall import store  # noqa: E402
 
 JARVIS_DB = Path.home() / ".jarvis" / "jarvis.db"
 BACKUP = Path.home() / ".jarvis" / "jarvis.db.bak-sentinel"

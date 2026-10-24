@@ -1,6 +1,6 @@
 """Checks: scripts under ~/.sentinel/checks that look at the machines and leave one artifact each.
 
-`sentinel check <name>` runs `checks/check-<name>.py` (or `<name>.py`) with Sentinel's interpreter, passes
+`sentinel check <name>` runs `checks/check-<name>.py` (or `<name>.py`) with Heimdall's interpreter, passes
 its exit code through, and stamps its artifact `state/checks/<name>.json` with the envelope every reader can
 rely on whatever the check puts in the rest: `ran_at`, `exit`, and `ok` (exit 0 and nothing in `failing` or
 `problems`). A run with `--check` in its args is read-only and stamps nothing. A check never alerts: what

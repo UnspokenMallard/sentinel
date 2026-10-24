@@ -22,7 +22,7 @@ Safety: installs run with --ignore-scripts, so no package install hook executes 
 machine, and the minimum release age keeps a freshly published (possibly compromised)
 version out of the run.
 
-A Sentinel check since 2026-10-18 (Jarvis keeps the clock): launchd com.jarvis.deprehearsal
+A Heimdall check since 2026-10-18 (Jarvis keeps the clock): launchd com.jarvis.deprehearsal
 (Mondays 01:00; see ~/.jarvis/install-launchd.sh) runs `sentinel-job.sh check dep-rehearsal`, and the
 runner stamps the artifact state/checks/dep-rehearsal.json when it ends. Reports and the log stay in
 ~/.jarvis (reports/dep-rehearsal, logs/dep-rehearsal.log: report-push-deps and log-signatures read them).

@@ -14,7 +14,7 @@ one cause. One open incident per kind, enforced by a partial unique index.
 
   * **a resolver**: a registered function that re-asks the original question against live state. The
     only kind of resolution that is evidence. Resolvers that read Jarvis's own state (heartbeats, jobs,
-    the event queue) are registered by Jarvis at startup with `@resolver(kind)`; Sentinel holds the
+    the event queue) are registered by Jarvis at startup with `@resolver(kind)`; Heimdall holds the
     registry and runs the pass.
   * **quiet**: nothing of that kind fired for `quiet_resolve_s`. Inference, labelled as such, and only
     for kinds with no resolver. A resolver that exists and cannot answer never degrades into a guess.
@@ -23,7 +23,7 @@ one cause. One open incident per kind, enforced by a partial unique index.
 A resolver returns three values: resolved, still true, or None = cannot tell. Cannot tell keeps the
 incident open. "Could not check" is its own answer and never the good one.
 
-Sentinel observes and records. It never pings, posts, postpones or holds work: Jarvis reads the open
+Heimdall observes and records. It never pings, posts, postpones or holds work: Jarvis reads the open
 incidents and acts.
 """
 from __future__ import annotations
@@ -124,7 +124,7 @@ def record_alert(key: str, message: str, severity: str = "warn", evidence: str |
             alerts_now()
         return int(incident_id) if incident_id is not None else None
     except Exception as exc:  # noqa: BLE001 - bookkeeping must never eat an alert
-        log.debug("sentinel: could not record %s: %s", key, exc)
+        log.debug("heimdall: could not record %s: %s", key, exc)
         return None
 
 
@@ -188,7 +188,7 @@ def reconcile() -> list[str]:
             try:
                 verdict = fn(inc)
             except Exception as exc:  # noqa: BLE001 - a broken resolver holds it open
-                log.debug("sentinel: resolver for %s raised: %s", inc["kind"], exc)
+                log.debug("heimdall: resolver for %s raised: %s", inc["kind"], exc)
                 verdict = None
             if verdict is not None and verdict[0]:
                 if resolve(inc["id"], BY_RESOLVER, verdict[1]):
@@ -287,7 +287,7 @@ def alerts_now() -> bool:
     lines = [
         "# Open incidents",
         "",
-        "What is wrong right now, from Sentinel's store (`sentinel incidents`). Rewritten when an incident "
+        "What is wrong right now, from Heimdall's store (`sentinel incidents`). Rewritten when an incident "
         "opens or resolves. `~/.jarvis/logs/alerts.log` is the full record of what was said.",
         "",
     ]
@@ -310,5 +310,5 @@ def alerts_now() -> bool:
         tmp.replace(path)
         return True
     except OSError as exc:
-        log.debug("sentinel: could not write %s: %s", path.name, exc)
+        log.debug("heimdall: could not write %s: %s", path.name, exc)
         return False

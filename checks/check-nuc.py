@@ -36,7 +36,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 JARVIS = Path.home() / ".jarvis"
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "nuc.json"
 NUC = "192.168.1.185"  # ~/.ssh/config Host nuc
 KEY = "machine-down:nuc"
@@ -90,7 +90,7 @@ def main() -> int:
         print(f"nuc: {message}", file=sys.stderr)
         return 1
     ARTIFACT.parent.mkdir(parents=True, exist_ok=True)
-    # "alerts": what Jarvis should say. Sentinel records; the job handler delivers (deliver_alerts).
+    # "alerts": what Jarvis should say. Heimdall records; the job handler delivers (deliver_alerts).
     alerts = [{"key": KEY, "message": message, "severity": "error", "cooldown_s": 3600}] if verdict == "down" else []
     ARTIFACT.write_text(json.dumps({"checked_at": now, "failing": [KEY] if verdict == "down" else [],
                                     "message": message, "alerts": alerts, **seen}, indent=2))

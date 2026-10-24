@@ -1,4 +1,4 @@
-# Sentinel config. Jarvis's [incidents] section moved here 2026-10-17.
+# Heimdall config. Jarvis's [incidents] section moved here 2026-10-17.
 # Where `sentinel alerts-now` writes: the file Jarvis's readers already know.
 alerts_now = "~/.jarvis/ALERTS-NOW.md"
 
@@ -20,7 +20,7 @@ quiet_resolve_s = 86400
 "4ccc3b15b" = ".jarvis HUD commit: deletes consultant-digest.md, morning-digest.md, portfolio-report.md on purpose; same commit adds them to .gitignore as regenerated outputs (2026-10-13)"
 "81edd05a8" = "memory-export: deletes .index.json, a stale file from the old exporter; export now names deletions in its message (2026-10-14)"
 "1ca23ecb8" = "frontend-landing: untracks .playwright-mcp/ artifacts and adds them to .gitignore on purpose (2026-10-16)"
-"93585adfa" = ".jarvis: deletes memory-capture.py, people-sync.py, session-history.py on purpose; Mind's sleep cycle runs them from ~/.mind/mind (2026-10-17)"
+"93585adfa" = ".jarvis: deletes memory-capture.py, people-sync.py, session-history.py on purpose; Mimir's sleep cycle runs them from ~/.mind/mind (2026-10-17)"
 "30fca6020" = ".jarvis: deletes memory/ on purpose; the memory store code moved to ~/.mind/mind (2026-10-17)"
 "094df756c" = ".jarvis: untracks .hud-attachments/handoff.md, excluded from git on purpose (2026-10-16)"
 "150632c36" = "er-web: restyle commit replaces the zoomHandler template with a component stylesheet, deletes zoomHandler.tpl.html on purpose (2026-10-21)"

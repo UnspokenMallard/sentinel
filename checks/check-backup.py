@@ -30,7 +30,7 @@ FINDING_EXIT = 87  # a check ran and found a problem; jarvis daemon/core.py FIND
 LOG_DIR = Path.home() / "Library" / "Logs" / "mac-backup"
 STATUS_FILE = LOG_DIR / "status.json"
 BACKUP_LOG = LOG_DIR / "backup.log"
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "backup.json"
 MAX_RUN_AGE_H = 26
 MAX_DRILL_AGE_D = 40
@@ -55,8 +55,9 @@ STORES: list[tuple[str, str, object]] = [
     ("jarvis.db", "jarvis.db", "db-copy"),
     ("memory store (memory.db)", "memory.db", "db-copy"),
     ("yggdrasil (ygg.db)", "ygg.db", "db-copy"),
-    *[(f"{n} home", f"{H}/.{n.lower()}", "mac-backup")
-      for n in ("Mind", "Budget", "Sentinel", "Herald", "Forge", "Gateway", "Analyst")],
+    *[(f"{n} home", f"{H}/.{d}", "mac-backup")
+      for n, d in (("Mimir", "mind"), ("Fafnir", "budget"), ("Heimdall", "sentinel"), ("Hermod", "herald"),
+                   ("Brokkr", "forge"), ("Bifrost", "gateway"), ("Odin", "analyst"))],
     *[(f"{n}.db", f"{n}.db", "db-copy") for n in ("budget", "sentinel", "herald", "forge", "gateway")],
     ("Claude configs", f"{H}/.claude-personal", "mac-backup"),
     ("Claude work config", f"{H}/.claude-work", "mac-backup"),

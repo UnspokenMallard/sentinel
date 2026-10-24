@@ -28,7 +28,7 @@ import notmine  # noqa: E402
 HOME = Path.home()
 JARVIS = HOME / ".jarvis"
 ROOTS = [HOME / "code" / "eventregistry", HOME / "code" / "personal"]
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 OUT_DIR = JARVIS / "state" / "versions"  # read by session-memory-digest.py: a published output, not check state
 ARTIFACT = CHECKS / "repo-versions.json"
 MAX_ENTRIES = 30

@@ -25,9 +25,9 @@ from pathlib import Path
 
 JARVIS = Path.home() / ".jarvis"
 LOGS = JARVIS / "logs"
-ANALYST_LOGS = Path.home() / ".analyst" / "state" / "logs"  # the report jobs Jarvis triggers in Analyst (2026-10-18)
+ODIN_LOGS = Path.home() / ".analyst" / "state" / "logs"  # the report jobs Jarvis triggers in Odin (2026-10-18)
 REPORT = JARVIS / "reports" / "log-signatures" / "latest.md"
-CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Sentinel owns a check's artifact and history (2026-10-17)
+CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "log-signatures.json"
 WINDOW_DAYS = 7
 TOP_N = 15
@@ -78,7 +78,7 @@ def main() -> int:
     build: Counter[str] = Counter()
     examples: dict[str, str] = {}
     sources: dict[str, set[str]] = defaultdict(set)
-    files = [p for d in (LOGS, ANALYST_LOGS) for p in d.glob("*.log*") if p.is_file() and p.stat().st_mtime >= cutoff]
+    files = [p for d in (LOGS, ODIN_LOGS) for p in d.glob("*.log*") if p.is_file() and p.stat().st_mtime >= cutoff]
     for path in files:
         try:
             text = path.read_text(encoding="utf-8", errors="replace")

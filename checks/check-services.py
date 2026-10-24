@@ -1,7 +1,7 @@
 #!/Users/anzes/.jarvis/.venv/bin/python
 """Local service ports (audit A01, 2026-10-21; detection only).
 
-Mind's server kept its process for 3 days on 10-18 with no listener on :3024, and nothing alerted: launchd
+Mimir's server kept its process for 3 days on 10-18 with no listener on :3024, and nothing alerted: launchd
 said "running" and no check opened the port. This one GETs each service's /health. A service that does not
 answer is one `service-down:<name>` alert in the artifact, delivered by the Jarvis job (deliver_alerts).
 Usage: check-services.py
