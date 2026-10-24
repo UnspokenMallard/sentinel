@@ -1,4 +1,4 @@
-"""Heimdall tests. Run: ~/.jarvis/.venv/bin/python ~/.sentinel/tests/test_heimdall.py"""
+"""Heimdall tests, against a scratch Mimir store. Run: ~/.jarvis/.venv/bin/python ~/.sentinel/tests/test_heimdall.py"""
 import os
 import sys
 import tempfile
@@ -7,12 +7,18 @@ from pathlib import Path
 
 _TMP = Path(tempfile.mkdtemp(prefix="heimdall-test-"))
 os.environ["HEIMDALL_HOME"] = str(_TMP)  # before anything imports heimdall
+os.environ["MEMORY_DB"] = str(_TMP / "memory.db")  # Mimir's store, a scratch one
+os.environ["MIMIR_OUTBOX"] = str(_TMP / "outbox")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path.home() / ".mind" / "mimir"))
+
+import mem  # noqa: E402
+import mimirrecords as mr  # noqa: E402
+
+mr.use_local(mem.connect(shared=True))  # calls go to the scratch store in-process, no HTTP
 
 import heimdall  # noqa: E402
 from heimdall import alerts, checks, cli, incidents, store  # noqa: E402
-
-assert store.DB_PATH.parent == _TMP / "state", store.DB_PATH
 
 
 def test_raise_groups_by_kind():
@@ -51,8 +57,8 @@ def test_reconcile_resolver_and_cannot_tell():
 def test_quiet_only_without_resolver():
     heimdall.raise_("quiet-kind:a", "x")
     heimdall.raise_("rv-no:b", "x")
-    with store.connect() as conn:
-        conn.execute("UPDATE incidents SET last_seen_at = 0 WHERE resolved_at IS NULL")
+    for inc in heimdall.open_incidents():  # as if nothing had fired for a long time
+        mr.patch("heimdall", incidents.KIND, str(inc["id"]), {"last_seen_at": 0}, at=time.time(), wait=True)
     changed = heimdall.reconcile()
     open_kinds = {i["kind"] for i in heimdall.open_incidents()}
     assert "quiet-kind" not in open_kinds and "rv-no" in open_kinds and "rv-unknown" in open_kinds, changed
@@ -61,9 +67,13 @@ def test_quiet_only_without_resolver():
 def test_prune_keeps_open():
     iid = heimdall.raise_("old:a", "x")["incident"]
     heimdall.resolve(iid, heimdall.BY_HUMAN, "t")
-    with store.connect() as conn:
-        conn.execute("UPDATE incidents SET resolved_at = 1 WHERE id = ?", (iid,))
+    mr.patch("heimdall", incidents.KIND, str(iid), {"resolved_at": 1}, at=time.time(), wait=True)
+    newest = heimdall.raise_("newer:a", "x")["incident"]
+    heimdall.resolve(newest, heimdall.BY_HUMAN, "t")
+    mr.patch("heimdall", incidents.KIND, str(newest), {"resolved_at": 1}, at=time.time(), wait=True)
     assert heimdall.prune(90) >= 1 and heimdall.get(iid) is None and heimdall.open_incidents()
+    assert heimdall.get(newest) is not None  # the newest id stays so no id is handed out twice
+    assert heimdall.raise_("newer:b", "x")["incident"] > newest
 
 
 def test_alerts_now_only_rewrites_on_change():
@@ -72,6 +82,37 @@ def test_alerts_now_only_rewrites_on_change():
     assert "Open incidents" in text and incidents.alerts_now() is False
     heimdall.raise_("brand-new:a", "fresh")
     assert "brand-new" in store.ALERTS_NOW.read_text()
+
+
+def test_alert_counts_rise_and_survive_a_replay():
+    for _ in range(3):
+        heimdall.raise_("counted:a", "msg", "warn")
+    row = alerts.get("counted:a")
+    assert row["count"] == 3 and row["message"] == "msg" and row["first_seen"] <= row["last_seen"]
+    assert alerts.recent(1)[0][0] == "counted:a" and alerts.count_since(0) >= 1
+    assert alerts.sum_since(0, "counted:") == 3
+    before = time.time() - 1
+    assert [k for k, *_ in alerts.since(before)].count("counted:a") == 1
+
+
+def test_mimir_down_keeps_the_alert_and_loses_nothing():
+    os.environ["MIMIR_URL"] = "none"  # Mimir answers nothing
+    try:
+        r = heimdall.raise_("down:a", "while down")
+        assert r["count"] == 1 and r["incident"] is None  # no incident without a read, but no exception
+        assert mr.pending("heimdall")["pending"] == 1  # the count waits in the outbox
+        for call in (heimdall.open_incidents, lambda: alerts.recent(1)):
+            try:
+                call()
+                assert False, "a read must say Mimir is down, not return nothing"
+            except mr.MimirDown:
+                pass
+        assert incidents.alerts_now() is False
+        assert cli.main(["incidents", "--open"]) == 3
+    finally:
+        del os.environ["MIMIR_URL"]
+    assert alerts.get("down:a")["count"] == 1  # replayed
+    assert mr.pending("heimdall")["pending"] == 0
 
 
 def test_cli():
