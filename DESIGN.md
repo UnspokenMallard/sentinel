@@ -35,7 +35,7 @@ Hermod, postpone (`postpone.py` stays in Jarvis), diagnose sessions in the HUD, 
 
 Stays in Jarvis: `watchers.py` (directory events are orchestration input), `errorlog.py` (the
 shared Jarvis + HUD system error log; revisit), `check-hud-findings.py` (about Jarvis's own
-findings), `postpone.py`, the soak gate and checkpoint (they read Sentinel).
+findings), `postpone.py`, the soak gate and checkpoint (they read Heimdall).
 
 ## Interface
 

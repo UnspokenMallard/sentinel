@@ -16,7 +16,7 @@ timed_out or startup_failure, within MAX_AGE_DAYS. The alert key is
 A broken build exits 0: the check worked, and the alert goes through the artifact's `alerts` (Jarvis delivers: an
 incident, the phone ping). Exit 1 only when no remote could be asked (gh missing,
 offline): that is "cannot tell", and the artifact is not refreshed.
-Writes state/checks/builds.json (Sentinel): {checked_at, failing: [alert keys], rows, errors}.
+Writes state/checks/builds.json (Heimdall): {checked_at, failing: [alert keys], rows, errors}.
 Usage: check-builds.py [--dry-run]   (--dry-run raises no alert)
 """
 from __future__ import annotations

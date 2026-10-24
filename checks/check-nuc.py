@@ -18,7 +18,7 @@ while system binaries reach it.
 A failure is probed again after RETRY_S before it counts, so one dropped packet is not an
 incident. A down NUC exits 0: the check worked, and the alert is `machine-down:nuc`
 through the artifact's `alerts` (Jarvis delivers: an incident, the phone ping), not a failed job.
-Writes state/checks/nuc.json (Sentinel): {checked_at, failing: [alert keys], ...}; the incident's
+Writes state/checks/nuc.json (Heimdall): {checked_at, failing: [alert keys], ...}; the incident's
 resolver reads it. Usage: check-nuc.py
 """
 from __future__ import annotations

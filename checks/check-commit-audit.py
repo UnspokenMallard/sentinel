@@ -14,7 +14,7 @@ Scope: commits on any local branch with committer date in the last WINDOW_H hour
 whose author or committer is this machine's identity (the repo's user.email) or an
 agent identity (AGENT_EMAILS). Coworkers' fetched commits are out of scope.
 Read-only: runs git queries, never amends, rewrites or pushes.
-Output: ~/.jarvis/reports/commit-audit/latest.md, state/checks/commit-audit.json (Sentinel). A finding is the check
+Output: ~/.jarvis/reports/commit-audit/latest.md, state/checks/commit-audit.json (Heimdall). A finding is the check
 working, so it exits 0 and puts `alerts` (commit-audit:flagged, warn) in the artifact for the Jarvis job to deliver;
 exit 1 would make the daemon file it as handler-failed. Moved from Jarvis 2026-10-18.
 Usage: check-commit-audit.py [--hours N]
