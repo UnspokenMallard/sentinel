@@ -169,6 +169,7 @@ def test_commit_audit_flags_into_the_artifact_and_exits_0():
     git("commit", "-qm", "Add a\n\nCo-authored-by: Claude <noreply@anthropic.com>")
     ca.ROOTS, ca.EXTRA = [_TMP / "audited"], []
     ca.REPORT, ca.ARTIFACT, ca.CONFIG = _TMP / "r" / "latest.md", _TMP / "state" / "checks" / "commit-audit.json", _TMP / "none.toml"
+    ca.ACKS = _TMP / "state" / "commit-audit-acks.json"
     assert ca.main() == 0
     doc = json.loads(ca.ARTIFACT.read_text())
     assert doc["commits"] == 1 and doc["failing"] and doc["alerts"][0]["key"] == "commit-audit:flagged"
@@ -179,6 +180,11 @@ def test_commit_audit_flags_into_the_artifact_and_exits_0():
     assert ca.main() == 0
     doc = json.loads(ca.ARTIFACT.read_text())
     assert doc["flagged"] == [] and doc["alerts"] == [] and doc["failing"] == []
+    # The HUD's Acknowledge button writes ACKS instead of config.toml (audit A27).
+    ca.CONFIG.write_text("")
+    assert ca.main() == 0 and json.loads(ca.ARTIFACT.read_text())["flagged"]
+    ca.ACKS.write_text(json.dumps({sha[:9]: {"reason": "rebuild", "at": "2026-10-24"}}))
+    assert ca.main() == 0 and json.loads(ca.ARTIFACT.read_text())["flagged"] == []
 
 
 def test_check_with_dash_check_does_not_restamp():

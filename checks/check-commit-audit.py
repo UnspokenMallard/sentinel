@@ -43,6 +43,7 @@ EXTRA = [JARVIS]
 REPORT = JARVIS / "reports" / "commit-audit" / "latest.md"
 ARTIFACT = Path.home() / ".sentinel" / "state" / "checks" / "commit-audit.json"
 CONFIG = Path.home() / ".sentinel" / "config.toml"
+ACKS = Path.home() / ".sentinel" / "state" / "commit-audit-acks.json"  # written by the HUD's Acknowledge button (audit A27)
 WINDOW_H = 26
 AGENT_EMAILS = {"noreply@anthropic.com"}
 CRLF_RATIO = 5          # diff this many times larger than with --ignore-cr-at-eol ...
@@ -69,13 +70,17 @@ def repos() -> list[Path]:
 
 
 def acknowledged() -> dict[str, str]:
-    """[commit_audit.acknowledged] in ~/.sentinel/config.toml: sha prefix -> why it needs no action
-    (fixed by a later commit, or already pushed and not worth a force-push)."""
+    """[commit_audit.acknowledged] in ~/.sentinel/config.toml plus ACKS (the HUD's Acknowledge button):
+    sha prefix -> why it needs no action (fixed by a later commit, or already pushed and not worth a force-push)."""
     try:
-        cfg = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
+        cfg = (tomllib.loads(CONFIG.read_text(encoding="utf-8")).get("commit_audit") or {}).get("acknowledged") or {}
     except (OSError, tomllib.TOMLDecodeError):
-        return {}
-    return {k.lower(): v for k, v in ((cfg.get("commit_audit") or {}).get("acknowledged") or {}).items()}
+        cfg = {}
+    try:
+        hud = {k: v.get("reason", "") if isinstance(v, dict) else str(v) for k, v in json.loads(ACKS.read_text(encoding="utf-8")).items()}
+    except (OSError, ValueError, AttributeError):
+        hud = {}
+    return {k.lower(): v for k, v in {**hud, **cfg}.items()}
 
 
 def is_acknowledged(sha: str, acks: dict[str, str]) -> bool:
