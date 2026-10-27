@@ -275,7 +275,8 @@ def report(days: int = 7) -> str:
     lines = [f"incidents - last {days}d", ""]
     lines.append(f"  open              : {len(openrows)}")
     lines.append(f"  open, no resolver : {len(unresolvable)}")
-    lines.append(f"  resolvers         : {len(RESOLVERS)} ({', '.join(sorted(RESOLVERS))})")
+    lines.append(f"  resolvers here    : {len(RESOLVERS)} ({', '.join(sorted(RESOLVERS)) or 'none'}); "
+                 "the Jarvis daemon registers the real ones (daemon/incidents.py)")
     if by_reason:
         lines.append("")
         for reason, count in by_reason:
