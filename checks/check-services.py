@@ -33,6 +33,7 @@ SERVICES = {  # name -> (health url, launchd label)
     "syncthing": ("http://127.0.0.1:8384/rest/noauth/health", "sh.brew.syncthing"),
 }
 TIMEOUT_S = 5
+CONFIRM_RUNS = 2  # consecutive failed runs before an alert: one OrbStack/Docker restart is one blip, not four incidents
 
 
 def probe(url: str) -> str | None:
@@ -47,17 +48,24 @@ def probe(url: str) -> str | None:
 
 
 def main(services: dict = SERVICES, artifact: Path = ARTIFACT) -> int:
-    rows, alerts = [], []
+    try:
+        streak = json.loads(artifact.read_text()).get("streak", {})  # the previous run's counts live in the artifact
+    except (OSError, ValueError, AttributeError):
+        streak = {}
+    rows, alerts, failing, new_streak = [], [], [], {}
     for name, (url, label) in services.items():
         why = probe(url)
         rows.append({"name": name, "url": url, "ok": why is None, "error": why})
         if why:
+            failing.append(f"service-down:{name}")
+            new_streak[name] = int(streak.get(name, 0)) + 1
+        if why and new_streak[name] >= CONFIRM_RUNS:
             alerts.append({"key": f"service-down:{name}", "severity": "error", "cooldown_s": 3600,
                            "message": f"{name} ({label}) does not answer {url}: {why}"})
     problems = [a["message"] for a in alerts]
     artifact.parent.mkdir(parents=True, exist_ok=True)
-    artifact.write_text(json.dumps({"checked_at": datetime.now(timezone.utc).isoformat(), "rows": rows,
-                                    "problems": problems, "alerts": alerts}, indent=2))
+    artifact.write_text(json.dumps({"checked_at": datetime.now(timezone.utc).isoformat(), "failing": failing,
+                                    "streak": new_streak, "rows": rows, "problems": problems, "alerts": alerts}, indent=2))
     if problems:
         print("services: " + "; ".join(problems))
         return FINDING_EXIT

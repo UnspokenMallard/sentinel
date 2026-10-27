@@ -1,4 +1,4 @@
-"""Heimdall tests, against a scratch Mimir store. Run: ~/.jarvis/.venv/bin/python ~/.sentinel/tests/test_heimdall.py"""
+"""Heimdall tests, against a scratch Mimir store. Run: tests/run.sh (prints "N passed")"""
 import os
 import sys
 import tempfile
@@ -232,14 +232,22 @@ def test_services_drill_closed_and_wedged_listeners():
     closed.bind(("127.0.0.1", 0))
     closed_port = closed.getsockname()[1]
     closed.close()
+    services = {"wedged": (f"http://127.0.0.1:{wedged.getsockname()[1]}/health", "w"),
+                "closed": (f"http://127.0.0.1:{closed_port}/health", "c")}
+    art = _TMP / "services.json"
+    art.unlink(missing_ok=True)
     try:
-        code = svc.main({"wedged": (f"http://127.0.0.1:{wedged.getsockname()[1]}/health", "w"),
-                         "closed": (f"http://127.0.0.1:{closed_port}/health", "c")}, _TMP / "services.json")
+        first = svc.main(services, art)  # one failed run is a blip: no alert yet, but the keys are in `failing`
+        doc1 = json.loads(art.read_text())
+        code = svc.main(services, art)
     finally:
         wedged.close()
-    doc = json.loads((_TMP / "services.json").read_text())
+    doc = json.loads(art.read_text())
+    assert first == 0 and doc1["alerts"] == [] and doc1["failing"] == ["service-down:wedged", "service-down:closed"]
     assert code == svc.FINDING_EXIT
-    assert [a["key"] for a in doc["alerts"]] == ["service-down:wedged", "service-down:closed"]
+    assert [a["key"] for a in doc["alerts"]] == ["service-down:wedged", "service-down:closed"] == doc["failing"]
+    svc.main({}, art)  # recovered: streak and failing clear
+    assert json.loads(art.read_text())["failing"] == []
 
 
 def test_launchd_flags_only_idle_agents_with_a_bad_exit():
