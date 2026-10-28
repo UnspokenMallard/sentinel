@@ -6,7 +6,8 @@ the restore-drill line in its log. The backup script itself already runs the
 drills and checks; this job makes sure a failure cannot pass silently, because
 nothing else looks at the status file. Fails when:
   - the status file is missing or unreadable
-  - the last run is older than MAX_RUN_AGE_H (daily job, so 26h = one missed run)
+  - the last finished run is older than MAX_RUN_AGE_H (daily job, so 26h = one missed run), unless a
+    run started since is still going; that run fails the check only after MAX_RUN_HOURS
   - the NUC repository did not produce a good snapshot
   - the offsite (Cloudflare R2) copy is not configured or failed
   - the last successful restore drill is older than MAX_DRILL_AGE_D (monthly drill)
@@ -33,12 +34,15 @@ BACKUP_LOG = LOG_DIR / "backup.log"
 CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check's artifact and history (2026-10-17)
 ARTIFACT = CHECKS / "backup.json"
 MAX_RUN_AGE_H = 26
+MAX_RUN_HOURS = 12  # a run takes seconds to minutes; the status file is written when it ends, so a long one looks like a missed run
 MAX_DRILL_AGE_D = 40
 # Anze 2026-10-09: offsite (Cloudflare R2) copy postponed indefinitely. While True, a
 # "not-configured" offsite state is reported as postponed, not as a problem. A
 # configured offsite copy that fails is still a problem. Set False to make it required again.
 OFFSITE_POSTPONED = True
 DRILL_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) nuc: restore drill passed", re.M)
+START_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) === start$", re.M)
+DONE_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} === done", re.M)
 
 
 MAC_BACKUP = Path.home() / ".local" / "bin" / "mac-backup"
@@ -120,6 +124,14 @@ def last_drill(log_text: str) -> datetime | None:
     return datetime.fromisoformat(hits[-1]) if hits else None
 
 
+def run_started(log_text: str) -> datetime | None:
+    """When the run now in progress started: the last "=== start" line with no "=== done" after it."""
+    starts, done = list(START_RE.finditer(log_text)), list(DONE_RE.finditer(log_text))
+    if not starts or (done and done[-1].start() > starts[-1].start()):
+        return None
+    return datetime.fromisoformat(starts[-1].group(1)).astimezone()
+
+
 def main() -> int:
     now = datetime.now().astimezone()
     problems: list[str] = []
@@ -129,11 +141,24 @@ def main() -> int:
         problems.append(f"status file unreadable ({STATUS_FILE.name}): {exc}")
         status = {}
 
+    try:
+        log_text = BACKUP_LOG.read_text(errors="replace")
+    except OSError as exc:
+        log_text = ""
+        problems.append(f"backup log unreadable: {exc}")
+    started = run_started(log_text)
+    running_h = (now - started).total_seconds() / 3600 if started else None
+
     run_at = None
+    running_note = ""
+    if running_h is not None:
+        running_note = f"; run in progress since {started:%F %H:%M}"
+        if running_h > MAX_RUN_HOURS:
+            problems.append(f"backup run started {running_h:.0f}h ago and has not finished (limit {MAX_RUN_HOURS}h)")
     if status.get("at"):
         run_at = datetime.fromisoformat(status["at"])
         age_h = (now - run_at).total_seconds() / 3600
-        if age_h > MAX_RUN_AGE_H:
+        if age_h > MAX_RUN_AGE_H and (running_h is None or running_h > MAX_RUN_HOURS):
             problems.append(f"last backup run {age_h:.0f}h ago (limit {MAX_RUN_AGE_H}h)")
     elif status:
         problems.append("status file has no run time")
@@ -153,11 +178,7 @@ def main() -> int:
             + " - no second repository exists"
         )
 
-    try:
-        drill = last_drill(BACKUP_LOG.read_text(errors="replace"))
-    except OSError as exc:
-        drill = None
-        problems.append(f"backup log unreadable: {exc}")
+    drill = last_drill(log_text)
     drill_age_d = None
     if drill is None:
         problems.append("no successful restore drill in backup.log")
@@ -184,7 +205,7 @@ def main() -> int:
         "problems": problems,
     }, indent=2))
 
-    summary = (f"last run {run_at:%F %H:%M}" if run_at else "no run recorded") + offsite_note
+    summary = (f"last run {run_at:%F %H:%M}" if run_at else "no run recorded") + offsite_note + running_note
     summary += f"; last drill {drill_age_d}d ago" if drill_age_d is not None else ""
     if problems:
         print("backup: " + "; ".join(problems) + f". ({summary})", file=sys.stderr)

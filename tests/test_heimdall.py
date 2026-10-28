@@ -187,6 +187,30 @@ def test_commit_audit_flags_into_the_artifact_and_exits_0():
     assert ca.main() == 0 and json.loads(ca.ARTIFACT.read_text())["flagged"] == []
 
 
+def test_backup_check_does_not_call_a_run_in_progress_a_missed_run():
+    import json
+    from datetime import datetime, timedelta
+    cb = _load_check("check-backup.py")
+    stamp = lambda h: (datetime.now() - timedelta(hours=h)).strftime("%F %T")  # noqa: E731
+    assert cb.run_started("2026-10-27 02:30:05 === start\n2026-10-27 02:30:38 === done, nuc a\n") is None
+    assert cb.run_started("2026-10-27 02:30:05 === start\n2026-10-27 02:30:38 === done, nuc a\n2026-10-28 02:30:04 === start\nsnapshot b saved\n")
+    done_at = (datetime.now().astimezone() - timedelta(hours=29)).isoformat()
+    status = {"ok": True, "at": done_at, "nuc": {"ok": True}, "offsite": {"state": "not-configured"}}
+    drill = f"{stamp(24 * 24)} nuc: restore drill passed\n"
+    cb.STATUS_FILE, cb.BACKUP_LOG, cb.ARTIFACT = _TMP / "bk-status.json", _TMP / "bk.log", _TMP / "state" / "checks" / "backup.json"
+    cb.STATUS_FILE.write_text(json.dumps(status))
+    ages = lambda: [p for p in json.loads(cb.ARTIFACT.read_text())["problems"] if "last backup run" in p or "has not finished" in p]  # noqa: E731
+    cb.BACKUP_LOG.write_text(drill + f"{stamp(5)} === start\n")  # started 5h ago, still going
+    cb.main()
+    assert ages() == []
+    cb.BACKUP_LOG.write_text(drill + f"{stamp(14)} === start\n")  # stuck past MAX_RUN_HOURS
+    cb.main()
+    assert len(ages()) == 2
+    cb.BACKUP_LOG.write_text(drill)  # nothing running, last finish 29h ago: a real miss
+    cb.main()
+    assert len(ages()) == 1 and "29h ago" in ages()[0]
+
+
 def test_check_with_dash_check_does_not_restamp():
     import json
     (_TMP / "checks" / "check-readonly.py").write_text(
