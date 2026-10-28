@@ -1,4 +1,5 @@
 """Heimdall tests, against a scratch Mimir store. Run: tests/run.sh (prints "N passed")"""
+import json
 import os
 import sys
 import tempfile
@@ -290,6 +291,16 @@ def test_launchd_watches_anzes_and_brew_agents_and_exempts_keepalive_sigterm():
     rows = lc.parse(listing, {"com.anzes.helper", "sh.brew.syncthing"})
     assert [r["label"] for r in rows] == ["com.anzes.helper", "com.anzes.mac-backup", "com.anzes.env-check", "sh.brew.syncthing"]
     assert [r["label"] for r in rows if r["failing"]] == ["com.anzes.mac-backup", "sh.brew.syncthing"]
+
+
+def test_config_drift_exempts_only_the_listed_personal_only_hook():
+    cd = _load_check("config-drift.py")
+    def hooks(*cmds):
+        return {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": c} for c in cmds]}]}}
+    rules = 'python3 "$HOME/.claude-personal/hooks/workers-rules.py"'
+    assert cd.drift({"personal": hooks(rules), "work": hooks()})["work"]["hooks"] == []
+    other = cd.drift({"personal": hooks(rules, "other.py"), "work": hooks()})["work"]["hooks"]
+    assert [json.loads(e[2])["command"] for e in other] == ["other.py"]
 
 
 def test_services_cover_the_localhost_daemons():

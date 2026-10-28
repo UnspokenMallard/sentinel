@@ -42,6 +42,9 @@ CHECKS = Path.home() / ".sentinel" / "state" / "checks"  # Heimdall owns a check
 ARTIFACT = CHECKS / "config-drift.json"
 BACKUPS = CHECKS / "config-drift"
 SOURCE = "config-drift"
+# Hooks that belong to claude-personal only, as (event, command). Work must not have them (Einherjar isolation);
+# add a line here for each new personal-only hook.
+PERSONAL_ONLY = {("SessionStart", 'python3 "$HOME/.claude-personal/hooks/workers-rules.py"')}
 
 
 def hook_entries(settings: dict) -> list[tuple[str, str | None, str]]:
@@ -96,8 +99,9 @@ def load() -> dict[str, dict]:
 
 
 def drift(settings: dict[str, dict]) -> dict[str, dict]:
-    return {"personal": lacking(settings["personal"], settings["work"]),
-            "work": lacking(settings["work"], settings["personal"])}
+    work = lacking(settings["work"], settings["personal"])
+    work["hooks"] = [e for e in work["hooks"] if (e[0], json.loads(e[2]).get("command")) not in PERSONAL_ONLY]
+    return {"personal": lacking(settings["personal"], settings["work"]), "work": work}
 
 
 def _review():
