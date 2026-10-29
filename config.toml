@@ -28,6 +28,11 @@ quiet_resolve_s = 86400
 "53522bae9" = "er-web: deletes scripts/Test-WatchDeploy.ps1 and one more file on purpose; Anze acknowledged 2026-10-22"
 "cb5f7ec5a" = "er-web: deletes js/common/zoomHandler file on purpose; Anze acknowledged 2026-10-22"
 "6f68977f7" = "er-web: deletes img/pageNotFound.jpg on purpose; Anze acknowledged 2026-10-22"
+"bf9ce7450" = ".jarvis: Co-authored-by trailer from the Cursor runner; history is not rewritten, Cursor attribution is being switched off in ~/.cursor/cli-config.json; Anze acknowledged 2026-10-29"
+"d24b00c82" = ".jarvis: Co-authored-by trailer from the Cursor runner; history is not rewritten, Cursor attribution is being switched off in ~/.cursor/cli-config.json; Anze acknowledged 2026-10-29"
+"e3a3cc35d" = ".jarvis: Co-authored-by: Cursor trailer on the HUD Cursor switch; history is not rewritten, Cursor attribution is being switched off in ~/.cursor/cli-config.json; Anze acknowledged 2026-10-29"
+"7220ad698" = "er-web: line-ending churn; Anze acknowledged 2026-10-29"
+"3cbce2b25" = "er-web: line-ending churn; Anze acknowledged 2026-10-29"
 
 # ssh -L listeners that belong on a port (checks/check-dev-servers.py): port = why. A declared tunnel is listed
 # as info, not "other". A second process on the same port (e.g. the er-api mockBackend on 8092-8094) is still a finding.
